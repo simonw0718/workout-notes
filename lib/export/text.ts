@@ -38,7 +38,8 @@ export async function exportSessionText(sessionId: string): Promise<string> {
       byEx.set(s.exerciseId, { name: exName, rows: [], subtotalKg: 0 });
     }
     const g = byEx.get(s.exerciseId)!;
-    g.rows.push(`${s.weight}${unit}×${s.reps}`);
+    const rpeTxt = s.rpe != null ? ` RPE${s.rpe}` : ""; // ← 新增
+    g.rows.push(`${s.weight}${unit}×${s.reps}${rpeTxt}`); // ← 改這
     g.subtotalKg += toKg(s.weight, unit) * s.reps;
   }
 

@@ -21,11 +21,12 @@ export default function SetList({
   const rows = useMemo(
     () =>
       items.map((s, idx) => {
-        const unit = s.unit ?? "lb"; // 舊資料預設 lb
+        const unit = s.unit ?? "lb";
+        const rpeTxt = s.rpe != null ? ` RPE${s.rpe}` : ""; // ← 新增
         return {
           ...s,
-          displayNo: items.length - idx, // 最新在上
-          label: `${s.weight}${unit}×${s.reps}`,
+          displayNo: items.length - idx,
+          label: `${s.weight}${unit}×${s.reps}${rpeTxt}`, // ← 改這
           time: new Date(s.createdAt).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",

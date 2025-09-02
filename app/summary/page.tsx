@@ -1,11 +1,22 @@
+// app/summary/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { exportSessionText } from "@/lib/export/text";
 import { startSession } from "@/lib/db";
 
+/** 外層只放 Suspense 邊界，避免 Next.js build 對 useSearchParams 的限制 */
 export default function SummaryPage() {
+  return (
+    <Suspense fallback={<main className="p-6">載入中…</main>}>
+      <SummaryPageInner />
+    </Suspense>
+  );
+}
+
+/** 原本的邏輯全部搬到內層，這裡可以安全使用 useSearchParams */
+function SummaryPageInner() {
   const sp = useSearchParams();
   const router = useRouter();
   const sessionId = sp.get("sessionId") ?? "";
@@ -15,8 +26,11 @@ export default function SummaryPage() {
 
   useEffect(() => {
     let cancelled = false;
+
     async function run() {
       let sid = sessionId;
+
+      // 若沒有 sessionId，就先開一場並導到正確 URL
       if (!sid) {
         const s = await startSession();
         if (cancelled) return;
@@ -24,9 +38,11 @@ export default function SummaryPage() {
         router.replace(`/summary?sessionId=${sid}`);
         return; // 等下一輪再載入
       }
+
       const t = await exportSessionText(sid);
       if (!cancelled) setText(t);
     }
+
     run();
     return () => {
       cancelled = true;
@@ -39,7 +55,7 @@ export default function SummaryPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Fallback（非 HTTPS 或權限被擋時）
+      // Fallback：HTTP 或權限被擋時
       const ta = document.createElement("textarea");
       ta.value = text;
       document.body.appendChild(ta);

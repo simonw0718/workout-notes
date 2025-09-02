@@ -13,7 +13,9 @@ export type Exercise = {
   name: string;
   defaultWeight?: number; // 建議以 kg 存
   defaultReps?: number;
+  defaultUnit?: Unit;
   isFavorite?: boolean;
+  sortOrder?: number;
 };
 
 export type SetRecord = {
@@ -24,5 +26,6 @@ export type SetRecord = {
   reps: number;
   /** 新版資料一定有；為了相容舊資料，型別標成可選 */
   unit?: Unit;
+  rpe?: number | null;
   createdAt: number;
 };

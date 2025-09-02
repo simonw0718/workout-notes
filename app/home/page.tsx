@@ -1,3 +1,4 @@
+// app/home/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -16,6 +17,7 @@ export default function Home() {
   const [all, setAll] = useState<Exercise[]>([]);
   const [selected, setSelected] = useState<string>("");
 
+  // 初始載入：撈「最近一筆 session」與常用/所有動作
   useEffect(() => {
     (async () => {
       setSession((await getLatestSession()) ?? null);
@@ -24,6 +26,7 @@ export default function Home() {
     })();
   }, []);
 
+  // 重新開始今天（新建一個 session）
   const handleStart = async () => {
     const s = await startSession();
     setSession(s);
@@ -31,16 +34,29 @@ export default function Home() {
 
   return (
     <main className="p-6 space-y-6">
+      {/* Header */}
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Workout Notes</h1>
-        <button
-          onClick={handleStart}
-          className="px-4 py-2 rounded-xl bg-black text-white"
-        >
-          {session ? "重新開始今天" : "開始新訓練"}
-        </button>
+
+        <div className="flex items-center gap-3">
+          {/* 設定入口（新增） */}
+          <Link
+            href="/settings"
+            className="px-3 py-2 rounded-xl border text-gray-800 hover:bg-gray-50"
+          >
+            設定
+          </Link>
+
+          <button
+            onClick={handleStart}
+            className="px-4 py-2 rounded-xl bg-black text-white"
+          >
+            重新開始今天
+          </button>
+        </div>
       </header>
 
+      {/* 常用動作 */}
       <section>
         <h2 className="font-semibold mb-2">常用動作</h2>
         <div className="grid grid-cols-2 gap-3">
@@ -56,6 +72,7 @@ export default function Home() {
         </div>
       </section>
 
+      {/* 備選動作 */}
       <section>
         <h2 className="font-semibold mb-2">備選動作</h2>
         <div className="flex gap-3">
@@ -71,6 +88,7 @@ export default function Home() {
               </option>
             ))}
           </select>
+
           <Link
             href={
               selected && session
@@ -88,6 +106,7 @@ export default function Home() {
         </div>
       </section>
 
+      {/* 本次摘要捷徑（已有 session 才顯示） */}
       {session && (
         <div className="pt-4">
           <Link

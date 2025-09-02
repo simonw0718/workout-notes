@@ -1,113 +1,64 @@
+// components/NumberStepper.tsx
 "use client";
 
-import { useRef, useState, type Dispatch, type SetStateAction } from "react";
-
 type Props = {
-  label: string;
+  label?: string;
   value: number;
   step?: number;
   min?: number;
-  onChange: Dispatch<SetStateAction<number>>; // 用 React setter，支援函式更新
+  max?: number;
+  onChange: (n: number) => void;
+  onEnter?: () => void; // ← 新增
 };
 
 export default function NumberStepper({
   label,
   value,
   step = 1,
-  min = 0,
+  min,
+  max,
   onChange,
+  onEnter,
 }: Props) {
-  const [editing, setEditing] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const holdTimeout = useRef<NodeJS.Timeout | null>(null);
-  const holdInterval = useRef<NodeJS.Timeout | null>(null);
-
-  const applyChange = (delta: number) => {
-    onChange((prev) => {
-      const next = Math.max(min, prev + delta);
-      // 避免浮點誤差（像 62.5 ± 2.5）
-      return Math.round(next * 1000) / 1000;
-    });
-  };
-
-  const startHold = (delta: number) => {
-    // 立刻觸發一次
-    applyChange(delta);
-    // 300ms 後開始連續觸發
-    holdTimeout.current = setTimeout(() => {
-      holdInterval.current = setInterval(() => applyChange(delta), 120);
-    }, 300);
-  };
-
-  const stopHold = () => {
-    if (holdTimeout.current) {
-      clearTimeout(holdTimeout.current);
-      holdTimeout.current = null;
-    }
-    if (holdInterval.current) {
-      clearInterval(holdInterval.current);
-      holdInterval.current = null;
-    }
-  };
-
-  const handleBlur = () => {
-    const raw = inputRef.current?.value ?? "";
-    const num = Number(raw);
-    if (!Number.isNaN(num)) {
-      onChange(() => Math.max(min, num));
-    }
-    setEditing(false);
+  const clamp = (v: number) => {
+    if (typeof min === "number" && v < min) v = min;
+    if (typeof max === "number" && v > max) v = max;
+    return v;
   };
 
   return (
-    <div className="flex items-center gap-3">
-      <label className="w-16">{label}</label>
+    <div className="space-y-1">
+      {label && <div className="text-sm text-gray-600">{label}</div>}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="px-3 py-2 rounded-lg border"
+          onClick={() => onChange(clamp(value - step))}
+        >
+          −
+        </button>
 
-      <button
-        onMouseDown={() => startHold(-step)}
-        onMouseUp={stopHold}
-        onMouseLeave={stopHold}
-        onTouchStart={() => startHold(-step)}
-        onTouchEnd={stopHold}
-        onContextMenu={(e) => e.preventDefault()}
-        className="px-3 py-2 border rounded-lg"
-      >
-        −
-      </button>
+        <input
+          type="number"
+          className="w-full border rounded-lg px-3 py-2 text-right"
+          value={Number.isFinite(value) ? value : ""}
+          onChange={(e) => onChange(clamp(Number(e.target.value)))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && onEnter) {
+              e.preventDefault();
+              onEnter();
+            }
+          }}
+        />
 
-      <div
-        className="w-20 text-center cursor-pointer select-none"
-        onClick={() => setEditing(true)}
-      >
-        {editing ? (
-          <input
-            ref={inputRef}
-            type="number"
-            defaultValue={value}
-            onBlur={handleBlur}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleBlur();
-            }}
-            autoFocus
-            className="w-full text-center border rounded"
-          />
-        ) : (
-          value
-        )}
+        <button
+          type="button"
+          className="px-3 py-2 rounded-lg border"
+          onClick={() => onChange(clamp(value + step))}
+        >
+          +
+        </button>
       </div>
-
-      <button
-        onMouseDown={() => startHold(step)}
-        onMouseUp={stopHold}
-        onMouseLeave={stopHold}
-        onTouchStart={() => startHold(step)}
-        onTouchEnd={stopHold}
-        onContextMenu={(e) => e.preventDefault()}
-        className="px-3 py-2 border rounded-lg"
-      >
-        +
-      </button>
     </div>
   );
 }
