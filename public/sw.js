@@ -1,7 +1,7 @@
 // public/sw.js
 // －－－－－－－－－－－－－－－－－－－－－－－－－－－－－－
 // ⚙️ 版本號：改這個字串就能觸發新版 SW（記得重新整理兩次測試）
-const VERSION = "v1.1.0";
+const VERSION = "v1.1.1";
 // －－－－－－－－－－－－－－－－－－－－－－－－－－－－－－
 
 self.addEventListener("install", (event) => {
