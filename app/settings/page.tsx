@@ -1,7 +1,7 @@
 // app/settings/page.tsx
 "use client";
 
-import Link from "next/link"; // ← 新增
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   listAllExercises,
@@ -116,10 +116,18 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <main className="p-6">
-        <Link href="/" className="inline-block mb-4 text-sm">
-          ← 返回
-        </Link>
+      <main className="p-6 max-w-5xl mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <Link href="/" className="text-sm">
+            ← 返回
+          </Link>
+          <Link
+            href="/sync"
+            className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50"
+          >
+            雲端同步
+          </Link>
+        </div>
         <h1 className="text-3xl font-bold mb-6">設定</h1>
         <p>載入中…</p>
       </main>
@@ -128,9 +136,18 @@ export default function SettingsPage() {
 
   return (
     <main className="p-6 max-w-5xl mx-auto">
-      <Link href="/" className="inline-block mb-4 text-sm">
-        ← 返回
-      </Link>
+      <div className="flex items-center justify-between mb-4">
+        <Link href="/" className="text-sm">
+          ← 返回
+        </Link>
+        <Link
+          href="/sync"
+          className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50"
+        >
+          雲端同步
+        </Link>
+      </div>
+
       <h1 className="text-3xl font-bold mb-6">設定</h1>
 
       {/* 新增 */}

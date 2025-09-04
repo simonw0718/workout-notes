@@ -4,7 +4,7 @@ import "./globals.css";
 
 import RegisterSW from "@/components/RegisterSW";
 import InstallPrompt from "@/components/InstallPrompt";
-
+import ClientInit from "@/components/ClientInit";
 /** 建議把 themeColor 移到 viewport（Next 15） */
 export const viewport: Viewport = {
   themeColor: "#111827",
@@ -60,6 +60,7 @@ export default function RootLayout({
         {/* 放在 body 最後：SW 註冊 + 安裝提示 */}
         <RegisterSW />
         <InstallPrompt />
+        <ClientInit /> {/* ← 新增這行：啟動時自動註冊裝置 */}
       </body>
     </html>
   );

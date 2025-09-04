@@ -6,12 +6,11 @@ import { useEffect, useState, useMemo } from "react";
 
 import {
   startSession,
-  getLatestSession,
   endSession,
   listFavorites,
   listAllExercises,
+  getLatestSession,   // ← 加進來
 } from "@/lib/db";
-
 import type { Session, Exercise } from "@/lib/models/types";
 
 export default function Home() {

@@ -2,20 +2,34 @@
 
 export type Unit = "kg" | "lb";
 
+export type Meta = {
+  id: "app";
+  deviceId: string;
+  userId?: string;
+  token?: string;
+  lastServerVersion?: number;
+};
+
 export type Session = {
   id: string;
   startedAt: number;
-  endedAt?: number;
+  endedAt?: number | null;
+  deletedAt?: number | null;
+  updatedAt: number;
+  deviceId: string;
 };
 
 export type Exercise = {
   id: string;
   name: string;
-  defaultWeight?: number; // 建議以 kg 存
-  defaultReps?: number;
-  defaultUnit?: Unit;
-  isFavorite?: boolean;
-  sortOrder?: number;
+  defaultWeight?: number | null;
+  defaultReps?: number | null;
+  defaultUnit?: Unit | null;
+  isFavorite?: boolean | null;
+  sortOrder?: number | null;
+  deletedAt?: number | null;
+  updatedAt: number;
+  deviceId: string;
 };
 
 export type SetRecord = {
@@ -24,8 +38,10 @@ export type SetRecord = {
   exerciseId: string;
   weight: number;
   reps: number;
-  /** 新版資料一定有；為了相容舊資料，型別標成可選 */
-  unit?: Unit;
+  unit?: Unit | null;
   rpe?: number | null;
   createdAt: number;
+  deletedAt?: number | null;
+  updatedAt: number;
+  deviceId: string;
 };
