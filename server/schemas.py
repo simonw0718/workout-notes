@@ -1,95 +1,141 @@
 # server/schemas.py
-from typing import Optional, List
-from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field
+try:
+    # pydantic v2
+    from pydantic import ConfigDict
+    _HAS_V2 = True
+except Exception:  # pydantic v1 fallback
+    _HAS_V2 = False
 
 
-# -------------------------------
-# Auth
-# -------------------------------
-
+# ---------- Auth ----------
 class RegisterDeviceRequest(BaseModel):
-    deviceId: Optional[str] = None  # 前端可能傳空字串或不傳，後端可自行產生
+    # 外部收 deviceId；內部使用 device_id
+    device_id: Optional[str] = Field(default=None, alias="deviceId")
+
+    if _HAS_V2:
+        model_config = ConfigDict(populate_by_name=True, ser_json_by_alias=True)
+    else:
+        class Config:
+            allow_population_by_field_name = True
+            # 回傳時也用 alias（camelCase）
+            json_encoders: Dict = {}
 
 
 class RegisterDeviceResponse(BaseModel):
-    userId: str
-    deviceId: str
+    # 對外回傳 userId / deviceId / token
+    user_id: str = Field(alias="userId")
+    device_id: str = Field(alias="deviceId")
     token: str
 
+    if _HAS_V2:
+        model_config = ConfigDict(populate_by_name=True, ser_json_by_alias=True)
+    else:
+        class Config:
+            allow_population_by_field_name = True
+            json_encoders: Dict = {}
 
-# -------------------------------
-# Sync 變更資料模型（與前端 IndexedDB schema 對齊）
-# -------------------------------
 
-class SessionIn(BaseModel):
+# ---------- Sync payload ----------
+class Session(BaseModel):
     id: str
-    startedAt: int
-    endedAt: Optional[int] = None
-    deletedAt: Optional[int] = None
-    updatedAt: int
-    deviceId: str
+    started_at: int = Field(alias="startedAt")
+    ended_at: Optional[int] = Field(default=None, alias="endedAt")
+    deleted_at: Optional[int] = Field(default=None, alias="deletedAt")
+    updated_at: int = Field(alias="updatedAt")
+    device_id: str = Field(alias="deviceId")
 
-    class Config:
-        orm_mode = True
+    if _HAS_V2:
+        model_config = ConfigDict(populate_by_name=True, ser_json_by_alias=True)
+    else:
+        class Config:
+            allow_population_by_field_name = True
 
 
-class ExerciseIn(BaseModel):
+class Exercise(BaseModel):
     id: str
     name: str
-    defaultWeight: Optional[int] = None
-    defaultReps: Optional[int] = None
-    defaultUnit: Optional[str] = None
-    isFavorite: Optional[bool] = False
-    sortOrder: Optional[int] = None
-    deletedAt: Optional[int] = None
-    updatedAt: int
-    deviceId: str
+    default_weight: Optional[float] = Field(default=None, alias="defaultWeight")
+    default_reps: Optional[int] = Field(default=None, alias="defaultReps")
+    default_unit: Optional[str] = Field(default=None, alias="defaultUnit")
+    is_favorite: Optional[bool] = Field(default=None, alias="isFavorite")
+    sort_order: Optional[int] = Field(default=None, alias="sortOrder")
+    deleted_at: Optional[int] = Field(default=None, alias="deletedAt")
+    updated_at: int = Field(alias="updatedAt")
+    device_id: str = Field(alias="deviceId")
 
-    class Config:
-        orm_mode = True
+    if _HAS_V2:
+        model_config = ConfigDict(populate_by_name=True, ser_json_by_alias=True)
+    else:
+        class Config:
+            allow_population_by_field_name = True
 
 
-class SetRecordIn(BaseModel):
+class SetRecord(BaseModel):
     id: str
-    sessionId: str
-    exerciseId: str
-    weight: int
-    reps: int
+    session_id: str = Field(alias="sessionId")
+    exercise_id: str = Field(alias="exerciseId")
+    weight: Optional[float] = None
+    reps: Optional[int] = None
     unit: Optional[str] = None
-    rpe: Optional[int] = None
-    createdAt: int
-    deletedAt: Optional[int] = None
-    updatedAt: int
-    deviceId: str
+    rpe: Optional[float] = None
+    created_at: int = Field(alias="createdAt")
+    deleted_at: Optional[int] = Field(default=None, alias="deletedAt")
+    updated_at: int = Field(alias="updatedAt")
+    device_id: str = Field(alias="deviceId")
 
-    class Config:
-        orm_mode = True
+    if _HAS_V2:
+        model_config = ConfigDict(populate_by_name=True, ser_json_by_alias=True)
+    else:
+        class Config:
+            allow_population_by_field_name = True
 
 
-class ChangesIn(BaseModel):
-    sessions: List[SessionIn] = []
-    exercises: List[ExerciseIn] = []
-    sets: List[SetRecordIn] = []
+class Changes(BaseModel):
+    sessions: List[Session] = Field(default_factory=list)
+    exercises: List[Exercise] = Field(default_factory=list)
+    sets: List[SetRecord] = Field(default_factory=list)
+
+    if _HAS_V2:
+        model_config = ConfigDict(populate_by_name=True, ser_json_by_alias=True)
+    else:
+        class Config:
+            allow_population_by_field_name = True
 
 
 class SyncRequest(BaseModel):
-    deviceId: str
+    device_id: str = Field(alias="deviceId")
     token: str
-    lastVersion: int = 0
-    changes: ChangesIn
+    last_version: int = Field(alias="lastVersion")
+    changes: Changes = Field(default_factory=Changes)
+
+    if _HAS_V2:
+        model_config = ConfigDict(populate_by_name=True, ser_json_by_alias=True)
+    else:
+        class Config:
+            allow_population_by_field_name = True
 
 
-# -------------------------------
-# Sync 回傳
-# -------------------------------
-
-# 伺服器回傳的變更（用 dict，避免與 ORM 直接耦合）
+# 回傳的變更內容不強制欄位結構，保持靈活
 class SyncResult(BaseModel):
-    sessions: List[dict]
-    exercises: List[dict]
-    sets: List[dict]
+    sessions: List[Dict[str, Any]] = Field(default_factory=list)
+    exercises: List[Dict[str, Any]] = Field(default_factory=list)
+    sets: List[Dict[str, Any]] = Field(default_factory=list)
+
+    if _HAS_V2:
+        model_config = ConfigDict(populate_by_name=True, ser_json_by_alias=True)
+    else:
+        class Config:
+            allow_population_by_field_name = True
 
 
 class SyncResponse(BaseModel):
-    serverVersion: int
+    server_version: int = Field(alias="serverVersion")
     changes: SyncResult
+
+    if _HAS_V2:
+        model_config = ConfigDict(populate_by_name=True, ser_json_by_alias=True)
+    else:
+        class Config:
+            allow_population_by_field_name = True

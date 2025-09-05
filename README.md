@@ -35,3 +35,10 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 # GymRecoder
+
+#	•	後端啟動：
+uvicorn server:app --host 127.0.0.1 --port 8000 --reload
+uvicorn server.app:app --host 127.0.0.1 --port 8000 --reload
+#	前端啟動
+pnpm install
+pnpm dev

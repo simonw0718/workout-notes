@@ -98,13 +98,13 @@ function ExerciseInner() {
       // 1) 同一 Session 最近一組
       // 2) 跨 Session 最近一組
       // 3) 動作預設
-      const fallbackUnit: Unit = (ex?.defaultUnit ?? "lb") as Unit;
-      const fallbackWeight = ex?.defaultWeight;
-      const fallbackReps = ex?.defaultReps;
+const fallbackUnit: Unit = (ex?.defaultUnit ?? "lb") as Unit;
+const fallbackWeight: number | undefined = ex?.defaultWeight ?? undefined;
+const fallbackReps: number | undefined = ex?.defaultReps ?? undefined;
 
-      let nextUnit: Unit = fallbackUnit;
-      let nextWeight: number | undefined = fallbackWeight;
-      let nextReps: number | undefined = fallbackReps;
+let nextUnit: Unit = fallbackUnit;
+let nextWeight: number | undefined = fallbackWeight;
+let nextReps: number | undefined = fallbackReps;
 
       if (crossSessionLast) {
         // 先設成跨 Session，後面若同 Session 有更近的會覆蓋

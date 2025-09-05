@@ -1,6 +1,7 @@
 // lib/db/index.ts
 import { openDB, DBSchema, IDBPDatabase } from "idb";
 import type { Exercise, Session, SetRecord, Meta, Unit } from "@/lib/models/types";
+import { safeUUID } from "@/lib/utils/uuid";   // ← 新增這行
 
 // Row Types：資料含 updatedAt / dirty（與你的資料列一致）
 export type SessionRow   = Session   & { updatedAt: number; dirty: boolean };
@@ -103,10 +104,10 @@ export async function getDB(): Promise<IDBPDatabase<WorkoutDB>> {
     const dbi = await _db;
     let meta = await dbi.get("meta", "app");
     if (!meta) {
-      meta = { id: "app", deviceId: crypto.randomUUID() } as Meta;
+      meta = { id: "app", deviceId: safeUUID() } as Meta;
       await dbi.put("meta", meta);
     } else if (!meta.deviceId) {
-      meta.deviceId = crypto.randomUUID();
+      meta.deviceId = safeUUID() ;
       await dbi.put("meta", meta);
     }
   }
@@ -118,7 +119,7 @@ async function getDeviceId(): Promise<string> {
   const db = await getDB();
   const meta = await db.get("meta", "app");
   if (meta?.deviceId) return meta.deviceId;
-  const deviceId = crypto.randomUUID();
+  const deviceId = safeUUID();                 // ← 改這裡
   await db.put("meta", { id: "app", deviceId } as Meta);
   return deviceId;
 }
@@ -130,7 +131,7 @@ export async function startSession(): Promise<Session> {
   const now = Date.now();
 
   const s: SessionRow = {
-    id: crypto.randomUUID(),
+    id: safeUUID(),
     startedAt: now,
     endedAt: null,
     deletedAt: null,
@@ -211,7 +212,7 @@ export async function createExercise(input: {
   }
 
   const ex: Exercise = {
-    id: crypto.randomUUID(),
+    id: safeUUID(),
     name: input.name.trim(),
     defaultWeight: input.defaultWeight ?? null,
     defaultReps: input.defaultReps ?? null,
@@ -291,7 +292,7 @@ export async function addSet(r: {
   const now = Date.now();
 
   const rec: SetRecordRow = {
-    id: crypto.randomUUID(),
+    id: safeUUID(),
     sessionId: r.sessionId,
     exerciseId: r.exerciseId,
     weight: r.weight,

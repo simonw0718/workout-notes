@@ -1,92 +1,105 @@
+// components/RegisterSW.tsx
 "use client";
-import { useEffect, useState } from "react";
 
-type UpdateState = { reg: ServiceWorkerRegistration | null };
+import { useEffect, useRef, useState } from "react";
+
+type SWReg = ServiceWorkerRegistration | null;
 
 export default function RegisterSW() {
-  const [updateReady, setUpdateReady] = useState<UpdateState>({ reg: null });
+  const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
+  const [show, setShow] = useState(false);
+  const regRef = useRef<SWReg>(null);
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+      return;
+    }
+
+    let unbindControllerChange: (() => void) | null = null;
+
+    const onControllerChange = () => {
+      // 新 SW 接管後，重新整理讓新快取生效
+      window.location.reload();
+    };
 
     const register = async () => {
       try {
-        const reg = await navigator.serviceWorker.register("/sw.js");
-        console.log("[SW] registered:", reg);
+        // 你的 sw.js 放在 /public 根目錄；scope 設為整站
+        const reg = await navigator.serviceWorker.register("/sw.js", {
+          scope: "/",
+        });
+        regRef.current = reg;
 
-        // 1) 如果已經有 waiting（例如你重新整理之後）
+        // 若已有 waiting（表示有新版本），顯示更新提示
         if (reg.waiting) {
-          console.log("[SW] already waiting");
-          setUpdateReady({ reg });
+          setWaiting(reg.waiting);
+          setShow(true);
         }
 
-        // 2) 偵測到新的 SW
+        // 新 SW 安裝完成 -> 進入 waiting
         reg.addEventListener("updatefound", () => {
-          const newSW = reg.installing;
-          if (!newSW) return;
+          const sw = reg.installing;
+          if (!sw) return;
 
-          console.log("[SW] updatefound, installing:", newSW);
-
-          newSW.addEventListener("statechange", () => {
-            // 當新 SW 進到 waiting，代表可更新
-            if (
-              newSW.state === "installed" &&
-              navigator.serviceWorker.controller
-            ) {
-              console.log('[SW] newSW state: "installed" (waiting)');
-              setUpdateReady({ reg });
+          sw.addEventListener("statechange", () => {
+            if (sw.state === "installed" && navigator.serviceWorker.controller) {
+              // 有舊版控制頁面，同時新 SW 安裝就緒
+              setWaiting(reg.waiting);
+              setShow(true);
             }
           });
         });
 
-        // 3) 如果這個頁面目前沒被任何 SW 控制，等 controller 設好
-        if (!navigator.serviceWorker.controller) {
-          navigator.serviceWorker.addEventListener(
-            "controllerchange",
-            () => {
-              console.log("[SW] ready (controller set):", reg);
-            },
-            { once: true },
-          );
-        }
-      } catch (err) {
-        console.error("[SW] register failed:", err);
+        // 當舊 SW 交棒給新 SW
+        navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+        unbindControllerChange = () => {
+          navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+        };
+      } catch {
+        // 離線或其他原因註冊失敗時，靜默即可
       }
     };
 
     register();
+
+    return () => {
+      if (unbindControllerChange) unbindControllerChange();
+    };
   }, []);
 
-  const refreshToNew = async () => {
-    const reg = updateReady.reg;
-    if (!reg || !reg.waiting) return;
-    // 通知 waiting 的 SW 直接接管
-    reg.waiting.postMessage("SKIP_WAITING");
+  const handleUpdate = () => {
+    if (!waiting) return;
 
-    // controller 變更後重新載入
-    navigator.serviceWorker.addEventListener(
-      "controllerchange",
-      () => {
+    // 要求 waiting SW 立刻啟用
+    waiting.postMessage("SKIP_WAITING");
+
+    // iOS/Safari 有時不及時觸發 controllerchange，設置保險
+    setTimeout(() => {
+      if (!navigator.serviceWorker.controller) {
         window.location.reload();
-      },
-      { once: true },
-    );
+      }
+    }, 1200);
   };
 
-  // ✅ 有 waiting 才顯示提示條
-  if (!updateReady.reg) return null;
+  // 沒有更新就不顯示任何 UI（保持與現有頁面相容）
+  if (!show) return null;
 
   return (
-    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50">
-      <div className="rounded-xl shadow-lg bg-black text-white px-4 py-3 flex items-center gap-3">
-        <span>有新版本可用</span>
-        <button
-          onClick={refreshToNew}
-          className="px-3 py-1 rounded-lg bg-white text-black hover:bg-gray-200"
-        >
-          立即更新
-        </button>
-      </div>
+    <div className="fixed inset-x-0 bottom-6 mx-auto w-fit rounded-xl bg-black/80 text-white px-4 py-2 shadow-lg z-[1000]">
+      <span className="mr-3">有新版本可用</span>
+      <button
+        onClick={handleUpdate}
+        className="rounded-lg bg-white text-black px-3 py-1 hover:bg-gray-100"
+      >
+        立即更新
+      </button>
+      <button
+        onClick={() => setShow(false)}
+        className="ml-2 px-2 py-1 text-sm opacity-80 hover:opacity-100"
+        aria-label="dismiss"
+      >
+        關閉
+      </button>
     </div>
   );
 }
