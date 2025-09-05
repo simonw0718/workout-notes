@@ -1,4 +1,3 @@
-// app/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -9,8 +8,8 @@ import {
   endSession,
   listFavorites,
   listAllExercises,
-  getLatestSession,   // ← 加進來
 } from "@/lib/db";
+import { getLatestSession } from "@/lib/db/index";
 import type { Session, Exercise } from "@/lib/models/types";
 
 export default function Home() {
@@ -19,7 +18,6 @@ export default function Home() {
   const [all, setAll] = useState<Exercise[]>([]);
   const [selected, setSelected] = useState<string>("");
 
-  // 是否為「進行中」場次（可新增動作）
   const isActive = useMemo(() => !!(session && !session.endedAt), [session]);
 
   useEffect(() => {
@@ -46,7 +44,6 @@ export default function Home() {
   }, []);
 
   const handleStart = async () => {
-    // 無論是否已有結束的 session，直接新開一場
     const s = await startSession();
     setSession(s);
   };
@@ -59,131 +56,174 @@ export default function Home() {
   };
 
   return (
-    <main className="p-6 space-y-8">
-      {/* 狀態 Banner：訓練中 / 休息中 */}
-      <div className="w-full flex justify-center">
-        <div
-          className={`px-4 py-1 rounded-full text-sm font-medium ${
-            isActive
-              ? "bg-green-100 text-green-700"
-              : "bg-gray-100 text-gray-700"
-          }`}
-        >
-          {isActive ? "訓練中" : "休息中"}
-        </div>
-      </div>
-
-      {/* 頁首 */}
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Workout Notes</h1>
-        <div className="space-x-3">
-          <Link href="/history" className="underline">
-            歷史
-          </Link>
-
-          <Link
-            href="/settings"
-            className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50"
+    <main className="min-h-[100dvh] bg-white">
+      <div className="max-w-screen-sm mx-auto px-4 py-6 space-y-6">
+        {/* 狀態 Banner */}
+        <div className="w-full flex justify-center">
+          <div
+            className={`px-3 py-1 rounded-full text-sm font-medium ${
+              isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+            }`}
           >
-            設定
-          </Link>
+            {isActive ? "訓練中" : "休息中"}
+          </div>
+        </div>
 
+        {/* 頁首 */}
+        <header className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Workout Notes</h1>
+          <div className="hidden sm:flex items-center gap-2">
+            <Link href="/history" className="underline text-sm">
+              歷史
+            </Link>
+            <Link
+              href="/settings"
+              className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50"
+            >
+              設定
+            </Link>
+            <button
+              onClick={handleStart}
+              className="px-3 py-1 rounded-xl bg-black text-white"
+            >
+              重新開始今天
+            </button>
+            {isActive && (
+              <button onClick={handleEnd} className="px-3 py-1 rounded-xl border">
+                結束目前場次
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* 行動版主要操作列 */}
+        <div className="flex sm:hidden gap-2">
           <button
             onClick={handleStart}
-            className="px-3 py-1 rounded-xl bg-black text-white"
+            className="flex-1 px-4 py-3 rounded-2xl bg-black text-white"
           >
             重新開始今天
           </button>
-
-          {isActive && (
-            <button onClick={handleEnd} className="px-3 py-1 rounded-xl border">
-              結束目前場次
+          {isActive ? (
+            <button
+              onClick={handleEnd}
+              className="flex-1 px-4 py-3 rounded-2xl border"
+            >
+              結束
             </button>
+          ) : (
+            <Link
+              href="/settings"
+              className="flex-1 px-4 py-3 rounded-2xl border text-center"
+            >
+              設定
+            </Link>
           )}
         </div>
-      </header>
 
-      {/* 常用動作 */}
-      <section>
-        <h2 className="font-semibold mb-2">常用動作</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {favorites.map((ex) =>
-            isActive ? (
-              // 進行中：可點前往
+        {/* 常用動作 */}
+        <section>
+          <h2 className="font-semibold mb-2">常用動作</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {favorites.map((ex) =>
+              isActive ? (
+                <Link
+                  key={ex.id}
+                  className="rounded-2xl border p-4 text-center hover:bg-gray-50"
+                  href={`/exercise?exerciseId=${ex.id}&sessionId=${session!.id}`}
+                >
+                  {ex.name}
+                </Link>
+              ) : (
+                <button
+                  key={ex.id}
+                  disabled
+                  className="rounded-2xl border p-4 text-center bg-gray-100 text-gray-400 cursor-not-allowed"
+                  aria-disabled="true"
+                >
+                  {ex.name}
+                </button>
+              ),
+            )}
+            {favorites.length === 0 && (
+              <div className="text-gray-500">尚未設定常用動作</div>
+            )}
+          </div>
+        </section>
+
+        {/* 備選動作 */}
+        <section>
+          <h2 className="font-semibold mb-2">備選動作</h2>
+          <div className="flex gap-3">
+            <select
+              className="border rounded-xl p-3 flex-1"
+              value={selected}
+              onChange={(e) => setSelected(e.target.value)}
+              disabled={!isActive}
+            >
+              <option value="">— 選擇動作 —</option>
+              {all.map((ex) => (
+                <option key={ex.id} value={ex.id}>
+                  {ex.name}
+                </option>
+              ))}
+            </select>
+
+            {selected && isActive ? (
               <Link
-                key={ex.id}
-                className="rounded-2xl border p-4 text-center hover:bg-gray-50"
-                href={`/exercise?exerciseId=${ex.id}&sessionId=${session!.id}`}
+                href={`/exercise?exerciseId=${selected}&sessionId=${session!.id}`}
+                className="px-4 py-3 rounded-2xl bg-black text-white"
               >
-                {ex.name}
+                前往
               </Link>
             ) : (
-              // 非進行中：禁用（灰掉不可點）
               <button
-                key={ex.id}
                 disabled
-                className="rounded-2xl border p-4 text-center bg-gray-100 text-gray-400 cursor-not-allowed"
+                className="px-4 py-3 rounded-2xl bg-gray-200 text-gray-500 cursor-not-allowed"
                 aria-disabled="true"
               >
-                {ex.name}
+                前往
               </button>
-            ),
-          )}
-          {favorites.length === 0 && (
-            <div className="text-gray-500">尚未設定常用動作</div>
-          )}
-        </div>
-      </section>
+            )}
+          </div>
+        </section>
 
-      {/* 備選動作 */}
-      <section>
-        <h2 className="font-semibold mb-2">備選動作</h2>
-        <div className="flex gap-3">
-          <select
-            className="border rounded-lg p-2 flex-1"
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
-            disabled={!isActive}
-          >
-            <option value="">— 選擇動作 —</option>
-            {all.map((ex) => (
-              <option key={ex.id} value={ex.id}>
-                {ex.name}
-              </option>
-            ))}
-          </select>
-
-          {/* 前往按鈕：需要「已選動作 + 進行中」才開放 */}
-          {selected && isActive ? (
+        {/* 訓練摘要入口 */}
+        {session && (
+          <div className="pt-2">
             <Link
-              href={`/exercise?exerciseId=${selected}&sessionId=${session!.id}`}
-              className="px-4 py-2 rounded-xl bg-black text-white"
+              href={`/summary?sessionId=${session.id}`}
+              className="underline text-sm"
             >
-              前往
+              查看本次訓練摘要
             </Link>
-          ) : (
-            <button
-              disabled
-              className="px-4 py-2 rounded-xl bg-gray-200 text-gray-500 cursor-not-allowed"
-              aria-disabled="true"
-            >
-              前往
-            </button>
-          )}
-        </div>
-      </section>
+          </div>
+        )}
+      </div>
 
-      {/* 訓練摘要入口（有 session 才顯示即可，結束與否都能看摘要） */}
-      {session && (
-        <div className="pt-4">
+      {/* 底部固定捷徑（行動版） */}
+      <nav className="sm:hidden fixed bottom-4 inset-x-0 px-4">
+        <div className="max-w-screen-sm mx-auto grid grid-cols-3 gap-3">
           <Link
-            href={`/summary?sessionId=${session.id}`}
-            className="underline text-sm"
+            href="/history"
+            className="rounded-2xl border bg-white py-3 text-center shadow-sm"
           >
-            查看本次訓練摘要
+            歷史
+          </Link>
+          <Link
+            href="/settings"
+            className="rounded-2xl border bg-white py-3 text-center shadow-sm"
+          >
+            設定
+          </Link>
+          <Link
+            href="/sync"
+            className="rounded-2xl border bg-white py-3 text-center shadow-sm"
+          >
+            同步
           </Link>
         </div>
-      )}
+      </nav>
     </main>
   );
 }

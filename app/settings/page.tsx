@@ -52,6 +52,7 @@ export default function SettingsPage() {
   useEffect(() => {
     // 初次載入
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ---------------- 新增 ----------------
@@ -109,15 +110,37 @@ export default function SettingsPage() {
     [arr[index], arr[j]] = [arr[j], arr[index]];
     setFavorites(arr);
     await reorderFavorites(arr.map((x) => x.id));
-    // 不必再 load，因為上面已經 setFavorites；但為了安全和其它端同步仍建議 load 一次
     await load();
     emitFavoritesChanged();
   };
 
   if (loading) {
     return (
-      <main className="p-6 max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
+      <main className="max-w-screen-sm mx-auto p-4 sm:p-6">
+        <div className="sticky top-0 -mx-4 sm:-mx-6 mb-4 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+          <div className="px-4 sm:px-6 py-3 flex items-center justify-between border-b">
+            <Link href="/" className="text-sm">
+              ← 返回
+            </Link>
+            <Link
+              href="/sync"
+              className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50"
+            >
+              雲端同步
+            </Link>
+          </div>
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">設定</h1>
+        <p>載入中…</p>
+      </main>
+    );
+  }
+
+  return (
+    <main className="max-w-screen-sm mx-auto p-4 sm:p-6 space-y-6">
+      {/* Sticky header：手機上方便返回與同步 */}
+      <div className="sticky top-0 -mx-4 sm:-mx-6 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 z-10">
+        <div className="px-4 sm:px-6 py-3 flex items-center justify-between border-b">
           <Link href="/" className="text-sm">
             ← 返回
           </Link>
@@ -128,40 +151,23 @@ export default function SettingsPage() {
             雲端同步
           </Link>
         </div>
-        <h1 className="text-3xl font-bold mb-6">設定</h1>
-        <p>載入中…</p>
-      </main>
-    );
-  }
-
-  return (
-    <main className="p-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <Link href="/" className="text-sm">
-          ← 返回
-        </Link>
-        <Link
-          href="/sync"
-          className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50"
-        >
-          雲端同步
-        </Link>
       </div>
 
-      <h1 className="text-3xl font-bold mb-6">設定</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold">設定</h1>
 
       {/* 新增 */}
-      <section className="rounded-2xl border p-4 mb-8">
-        <h2 className="text-xl font-semibold mb-4">新增動作</h2>
+      <section className="rounded-2xl border p-4 space-y-4">
+        <h2 className="text-lg sm:text-xl font-semibold">新增動作</h2>
 
-        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+        <div className="grid gap-3">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="動作名稱（必填）"
-            className="rounded-xl border px-3 py-2"
+            className="rounded-xl border px-3 py-3 text-base"
           />
 
+        {/* 單位切換 */}
           <div className="flex items-center gap-3">
             <span>kg</span>
             <button
@@ -181,24 +187,25 @@ export default function SettingsPage() {
             <span>lb</span>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
+          {/* 數值欄位 */}
+          <div className="grid grid-cols-2 gap-3">
             <input
               value={defaultWeight}
               onChange={(e) => setDefaultWeight(e.target.value)}
               inputMode="numeric"
               placeholder="預設重量（可空）"
-              className="rounded-xl border px-3 py-2"
+              className="rounded-xl border px-3 py-3 text-base"
             />
             <input
               value={defaultReps}
               onChange={(e) => setDefaultReps(e.target.value)}
               inputMode="numeric"
               placeholder="預設次數（可空）"
-              className="rounded-xl border px-3 py-2"
+              className="rounded-xl border px-3 py-3 text-base"
             />
           </div>
 
-          <label className="mt-2 inline-flex items-center gap-2">
+          <label className="mt-1 inline-flex items-center gap-2 select-none">
             <input
               type="checkbox"
               checked={asFavorite}
@@ -211,7 +218,7 @@ export default function SettingsPage() {
             type="button"
             onClick={handleCreate}
             disabled={!canCreate}
-            className="mt-2 w-28 rounded-xl bg-black text-white py-2 disabled:opacity-40"
+            className="mt-1 h-11 rounded-xl bg-black text-white px-4 disabled:opacity-40"
           >
             新增
           </button>
@@ -219,8 +226,8 @@ export default function SettingsPage() {
       </section>
 
       {/* 常用（可排序） */}
-      <section className="rounded-2xl border p-4 mb-8">
-        <h2 className="text-xl font-semibold mb-4">常用動作（可排序）</h2>
+      <section className="rounded-2xl border p-4">
+        <h2 className="text-lg sm:text-xl font-semibold mb-2">常用動作（可排序）</h2>
 
         {favorites.length === 0 ? (
           <p className="text-gray-500">尚未設定常用動作</p>
@@ -229,8 +236,8 @@ export default function SettingsPage() {
             {favorites.map((ex, i) => (
               <li key={ex.id} className="rounded-xl border p-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="font-medium">{ex.name}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{ex.name}</div>
                     <div className="text-sm text-gray-500">
                       預設：{ex.defaultWeight ?? "-"} {ex.defaultUnit ?? "-"} ×{" "}
                       {ex.defaultReps ?? "-"}
@@ -250,7 +257,6 @@ export default function SettingsPage() {
                     >
                       下移
                     </button>
-
                     <button
                       className="rounded-lg border px-2 py-1"
                       onClick={() => toggleFavorite(ex)}
@@ -258,7 +264,6 @@ export default function SettingsPage() {
                     >
                       取消常用
                     </button>
-
                     <button
                       className="rounded-lg border px-2 py-1"
                       onClick={() => removeExercise(ex)}
@@ -307,7 +312,7 @@ export default function SettingsPage() {
 
       {/* 其他動作 */}
       <section className="rounded-2xl border p-4">
-        <h2 className="text-xl font-semibold mb-4">其他動作</h2>
+        <h2 className="text-lg sm:text-xl font-semibold mb-2">其他動作</h2>
 
         {others.length === 0 ? (
           <p className="text-gray-500">無其他動作</p>
@@ -316,8 +321,8 @@ export default function SettingsPage() {
             {others.map((ex) => (
               <li key={ex.id} className="rounded-xl border p-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="font-medium">{ex.name}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{ex.name}</div>
                     <div className="text-sm text-gray-500">
                       預設：{ex.defaultWeight ?? "-"} {ex.defaultUnit ?? "-"} ×{" "}
                       {ex.defaultReps ?? "-"}
