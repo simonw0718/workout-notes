@@ -1,7 +1,6 @@
-// lib/db/index.ts
 import { openDB, DBSchema, IDBPDatabase } from "idb";
 import type { Exercise, Session, SetRecord, Meta, Unit } from "@/lib/models/types";
-import { safeUUID } from "@/lib/utils/uuid";   // ← 新增這行
+import { safeUUID } from "@/lib/utils/uuid";
 
 // Row Types：資料含 updatedAt / dirty（與你的資料列一致）
 export type SessionRow   = Session   & { updatedAt: number; dirty: boolean };
@@ -11,7 +10,7 @@ export type SetRecordRow = SetRecord & { updatedAt: number; dirty: boolean };
 // IndexedDB Schema
 export interface WorkoutDB extends DBSchema {
   meta: {
-    key: string;        // 對應 Meta.id（固定 "app"）
+    key: string;
     value: Meta;
   };
 
@@ -39,8 +38,23 @@ export interface WorkoutDB extends DBSchema {
     indexes: {
       updatedAt: number;
       dirtyIdx: number;
-      by_session: string;   // 依 sessionId 查詢
+      by_session: string;
     };
+  };
+
+  transferLogs: {
+    key: string; // id
+    value: {
+      id: string;
+      type: "export" | "import";
+      at: string; // ISO
+      count: number;
+      filename?: string;
+      source?: "share" | "download" | "paste";
+      deviceUA?: string;
+      notes?: string;
+    };
+    indexes: { at: string };
   };
 }
 
@@ -51,13 +65,12 @@ let _db: Promise<IDBPDatabase<WorkoutDB>> | null = null;
 
 export async function getDB(): Promise<IDBPDatabase<WorkoutDB>> {
   if (!_db) {
-    // 版本號需 >= 你機器上既有版本；這裡用 5（保持你現況）
-    _db = openDB<WorkoutDB>("workout-notes", 5, {
+    _db = openDB<WorkoutDB>("workout-notes", 6, {
       async upgrade(db, _oldVersion, _newVersion, tx) {
-        // ---- meta: 保障 keyPath 一定是 'id'，必要時搬遷 ----
+        // ---- meta ----
         if (db.objectStoreNames.contains("meta")) {
           const store = tx.objectStore("meta") as any;
-          const keyPath = store.keyPath; // 舊版可能是 'key'
+          const keyPath = store.keyPath;
           if (keyPath !== "id") {
             const oldAll = await store.getAll();
             db.deleteObjectStore("meta");
@@ -76,7 +89,7 @@ export async function getDB(): Promise<IDBPDatabase<WorkoutDB>> {
           db.createObjectStore("meta", { keyPath: "id" });
         }
 
-        // ---- sessions / exercises / sets：建立或補缺的 index ----
+        // ---- sessions / exercises / sets ----
         const ensure = (name: StoreName) => {
           if (!db.objectStoreNames.contains(name)) {
             const s = db.createObjectStore(name, { keyPath: "id" });
@@ -97,6 +110,15 @@ export async function getDB(): Promise<IDBPDatabase<WorkoutDB>> {
         ensure("sessions");
         ensure("exercises");
         ensure("sets");
+
+        // ---- transferLogs ----
+        if (!db.objectStoreNames.contains("transferLogs")) {
+          const s = db.createObjectStore("transferLogs", { keyPath: "id" });
+          (s as any).createIndex("at", "at");
+        } else {
+          const s = tx.objectStore("transferLogs") as any;
+          if (!s.indexNames.contains("at")) s.createIndex("at", "at");
+        }
       },
     });
 
@@ -107,7 +129,7 @@ export async function getDB(): Promise<IDBPDatabase<WorkoutDB>> {
       meta = { id: "app", deviceId: safeUUID() } as Meta;
       await dbi.put("meta", meta);
     } else if (!meta.deviceId) {
-      meta.deviceId = safeUUID() ;
+      meta.deviceId = safeUUID();
       await dbi.put("meta", meta);
     }
   }
@@ -119,7 +141,7 @@ async function getDeviceId(): Promise<string> {
   const db = await getDB();
   const meta = await db.get("meta", "app");
   if (meta?.deviceId) return meta.deviceId;
-  const deviceId = safeUUID();                 // ← 改這裡
+  const deviceId = safeUUID();
   await db.put("meta", { id: "app", deviceId } as Meta);
   return deviceId;
 }
@@ -156,7 +178,6 @@ export async function getLatestSession(): Promise<Session | undefined> {
   const db = await getDB();
   const all = await db.getAll("sessions");
   if (!all || all.length === 0) return undefined;
-  // 用 startedAt 排序，取最後一筆
   all.sort((a, b) => (a.startedAt ?? 0) - (b.startedAt ?? 0));
   return all[all.length - 1];
 }
@@ -206,9 +227,7 @@ export async function createExercise(input: {
   let sortOrder: number | null | undefined = undefined;
   if (input.isFavorite) {
     const favs = await listFavorites(999);
-    sortOrder = favs.length > 0
-      ? Math.max(...favs.map((f) => f.sortOrder ?? 0)) + 1
-      : 0;
+    sortOrder = favs.length > 0 ? Math.max(...favs.map((f) => f.sortOrder ?? 0)) + 1 : 0;
   }
 
   const ex: Exercise = {
@@ -247,10 +266,10 @@ export async function updateExercise(patch: {
     ...cur,
     ...(patch.name !== undefined ? { name: patch.name } : {}),
     ...(patch.defaultWeight !== undefined ? { defaultWeight: patch.defaultWeight } : {}),
-    ...(patch.defaultReps  !== undefined ? { defaultReps:  patch.defaultReps }  : {}),
-    ...(patch.defaultUnit  !== undefined ? { defaultUnit:  patch.defaultUnit }  : {}),
-    ...(patch.isFavorite   !== undefined ? { isFavorite:   patch.isFavorite ?? null } : {}),
-    ...(patch.sortOrder    !== undefined ? { sortOrder:    patch.sortOrder ?? null }  : {}),
+    ...(patch.defaultReps !== undefined ? { defaultReps: patch.defaultReps } : {}),
+    ...(patch.defaultUnit !== undefined ? { defaultUnit: patch.defaultUnit } : {}),
+    ...(patch.isFavorite !== undefined ? { isFavorite: patch.isFavorite ?? null } : {}),
+    ...(patch.sortOrder !== undefined ? { sortOrder: patch.sortOrder ?? null } : {}),
     updatedAt: now,
   };
 
@@ -329,7 +348,6 @@ export async function deleteSet(id: string): Promise<void> {
   await db.delete("sets", id);
 }
 
-/** 取得「某動作」在其它 session 的最近 N 組（預設 3） */
 export async function getLastSetsForExercise(
   exerciseId: string,
   currentSessionId: string,
@@ -343,7 +361,6 @@ export async function getLastSetsForExercise(
     .slice(0, limit);
 }
 
-/** 取得同一個 Session、同一個動作的「最新一組」 */
 export async function getLatestSetInSession(
   exerciseId: string,
   sessionId: string,
@@ -355,7 +372,6 @@ export async function getLatestSetInSession(
   return filtered[0] ?? null;
 }
 
-/** 取得跨 Session 的「最新一組」（同動作；可排除當前 session） */
 export async function getLatestSetAcrossSessions(
   exerciseId: string,
   excludeSessionId?: string,
@@ -368,7 +384,6 @@ export async function getLatestSetAcrossSessions(
   return list[0] ?? null;
 }
 
-/** 其它工具：歷史 / 清除 */
 export async function listAllSets(): Promise<SetRecord[]> {
   const db = await getDB();
   const all = (await db.getAll("sets")) as SetRecord[];
@@ -425,3 +440,71 @@ export async function deleteAllHistory(): Promise<void> {
   await tx.objectStore("sessions").clear();
   await tx.done;
 }
+
+/* ============================ Transfer Logs ============================ */
+export async function addTransferLog(entry: {
+  type: "export" | "import";
+  count: number;
+  filename?: string;
+  source?: "share" | "download" | "paste";
+  deviceUA?: string;
+  notes?: string;
+}) {
+  const db = await getDB();
+  const id = safeUUID();
+  const at = new Date().toISOString();
+  await db.put("transferLogs", { id, at, ...entry });
+}
+
+export async function listTransferLogs(limit = 20) {
+  const db = await getDB();
+  const all = await db.getAll("transferLogs");
+  return (all ?? []).sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit);
+}
+
+export async function clearTransferLogs() {
+  const db = await getDB();
+  await db.clear("transferLogs");
+}
+// ① 列出全部 sessions（按 startedAt 升冪）
+export async function listAllSessions(): Promise<Session[]> {
+  const db = await getDB();
+  const all = await db.getAll("sessions");
+  return (all ?? []).slice().sort((a, b) => (a.startedAt ?? 0) - (b.startedAt ?? 0));
+}
+
+// ② 批次 upsert 歷史（可選覆蓋）
+export async function bulkUpsertHistory(
+  data: { sessions: Session[]; sets: SetRecord[] },
+  overwriteExisting = false,
+): Promise<number> {
+  const db = await getDB();
+  const tx = db.transaction(["sessions", "sets"], "readwrite");
+  let applied = 0;
+
+  // helper
+  async function putIfNeeded(storeName: "sessions" | "sets", row: any) {
+    const existed = await (tx.objectStore(storeName) as any).get(row.id);
+    if (!existed || overwriteExisting) {
+      await (tx.objectStore(storeName) as any).put({ ...row, dirty: true });
+      applied++;
+    }
+  }
+
+  for (const s of data.sessions ?? []) {
+    await putIfNeeded("sessions", s);
+  }
+  for (const r of data.sets ?? []) {
+    await putIfNeeded("sets", r);
+  }
+
+  await tx.done;
+  return applied;
+}
+
+// （你已經有 listAllSets，如無則保留此備援）
+// export async function listAllSets(): Promise<SetRecord[]> {
+//   const db = await getDB();
+//   const all = (await db.getAll("sets")) as SetRecord[];
+//   return (all ?? []).sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+// }

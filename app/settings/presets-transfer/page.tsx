@@ -1,16 +1,16 @@
-// app/settings/presets-transfer/page.tsx
 "use client";
-
+//presets-transfer/page.tsx
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import type { ExportBundleV1, Preset } from "@/lib/models/presets";
-import { listAllExercises } from "@/lib/db";
+import type { ExportBundleV1, Preset, ImportPlanDetailed, ImportDecision } from "@/lib/models/presets";
+import { listAllExercises, addTransferLog } from "@/lib/db";
 import {
   tryShareFile,
   triggerDownload,
   parseAndValidate,
-  planImportByName,
-  applyImportByName,
+  exportPresetsAsBlob,
+  buildImportDiffsByName,
+  applyImportWithDecisions,
 } from "@/lib/export/presets";
 
 // --- helpers ---
@@ -28,25 +28,23 @@ function toPreset(e: any, nowISO: string): Preset {
   };
 }
 
-async function sha256Hex(text: string) {
-  const data = new TextEncoder().encode(text);
-  const buf = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
 export default function PresetsTransferPage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
-  // A. 直接讀 DB 的清單（真相來源）
+  // A. 直接讀 DB 的清單
   const [localEx, setLocalEx] = useState<any[] | null>(null);
 
-  // B. 匯出預覽（由 A 組成）
+  // B. 匯出預覽
   const [pendingExport, setPendingExport] = useState<{ bundle: ExportBundleV1; blob: Blob; filename: string } | null>(null);
 
-  // C. 匯入預覽
-  const [importPlan, setImportPlan] = useState<{ add: number; update: number; skip: number } | null>(null);
+  // C. 匯入預覽（新版：含 diff 與策略）
+  const [planDetail, setPlanDetail] = useState<ImportPlanDetailed | null>(null);
   const [lastBundle, setLastBundle] = useState<ExportBundleV1 | null>(null);
+  const [defaultAdd, setDefaultAdd] = useState<ImportDecision>("overwrite");
+  const [defaultUpdate, setDefaultUpdate] = useState<ImportDecision>("overwrite");
+  const [defaultSame, setDefaultSame] = useState<ImportDecision>("skip");
+  const [overrides, setOverrides] = useState<Record<string, ImportDecision>>({});
 
   useEffect(() => {
     (async () => {
@@ -67,19 +65,8 @@ export default function PresetsTransferPage() {
       setBusy(true);
       setMsg("");
       const now = new Date().toISOString();
-      const items: Preset[] = (localEx ?? []).map(e => toPreset(e, now));
-      const base: Omit<ExportBundleV1, "checksum"> = {
-        app: "WorkoutNotes",
-        kind: "presets",
-        version: 1,
-        exportedAt: now,
-        device: { ua: typeof navigator !== "undefined" ? navigator.userAgent : "unknown" },
-        items,
-      };
-      const hex = await sha256Hex(JSON.stringify(base));
-      const bundle: ExportBundleV1 = { ...base, checksum: `sha256:${hex}` };
-      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
-      const filename = `workoutnotes-presets-${now.slice(0, 10)}.wkn.json`;
+      const items: Preset[] = (localEx ?? []).map((e) => toPreset(e, now));
+      const { bundle, blob, filename } = await exportPresetsAsBlob();
       setPendingExport({ bundle, blob, filename });
       setMsg(`已產生匯出預覽：${items.length} 筆。`);
     } catch (e: any) {
@@ -100,6 +87,16 @@ export default function PresetsTransferPage() {
         await triggerDownload(blob, filename);
         setMsg(`已下載檔案，共 ${bundle.items.length} 筆。`);
       }
+      try {
+        await addTransferLog({
+          type: "export",
+          count: bundle.items.length,
+          filename,
+          source: shared ? "share" : "download",
+          deviceUA: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
+          notes: "user action confirmed",
+        });
+      } catch {}
       setPendingExport(null);
     } catch (e: any) {
       setMsg(`匯出失敗：${e?.message ?? e}`);
@@ -108,18 +105,20 @@ export default function PresetsTransferPage() {
     }
   }
 
-  // ---- Import: 選檔/貼上 → 預覽 → 套用 ----
+  // ---- Import: 選檔/貼上 → 預覽(diff) → 策略 → 套用 ----
   async function handleImport(text: string) {
     try {
       setBusy(true);
       setMsg("驗證中…");
       const bundle = await parseAndValidate(text);
       setLastBundle(bundle);
-      const p = await planImportByName(bundle.items);
-      setImportPlan({ add: p.add.length, update: p.update.length, skip: p.skip.length });
-      setMsg("預覽完成，確認後執行匯入。");
+
+      const p = await buildImportDiffsByName(bundle.items);
+      setPlanDetail(p);
+      setOverrides({});
+      setMsg(`預覽完成：新增 ${p.summary.add}、更新 ${p.summary.update}、相同 ${p.summary.same}`);
     } catch (e: any) {
-      setImportPlan(null);
+      setPlanDetail(null);
       setLastBundle(null);
       setMsg(`匯入檢查失敗：${e?.message ?? e}`);
     } finally {
@@ -128,16 +127,20 @@ export default function PresetsTransferPage() {
   }
 
   async function onApplyImport() {
-    if (!lastBundle) return;
+    if (!lastBundle || !planDetail) return;
     try {
       setBusy(true);
       setMsg("寫入中…");
-      const p = await planImportByName(lastBundle.items);
-      await applyImportByName(p);
-      setMsg(`完成：新增 ${p.add.length}、更新 ${p.update.length}、跳過 ${p.skip.length}`);
-      setImportPlan(null);
+      await applyImportWithDecisions({
+        plan: planDetail,
+        defaultDecisionForAdd: defaultAdd,
+        defaultDecisionForUpdate: defaultUpdate,
+        defaultDecisionForSame: defaultSame,
+        perItem: overrides,
+      });
+      setMsg(`完成：已套用所選決策。`);
+      setPlanDetail(null);
       setLastBundle(null);
-      // 重新讀 DB，讓上面的本機清單同步
       const exs = await listAllExercises();
       setLocalEx(exs);
     } catch (e: any) {
@@ -178,7 +181,7 @@ export default function PresetsTransferPage() {
           <button
             onClick={onPrepareExport}
             disabled={busy}
-            className="px-4 py-2 rounded-xl bg-black text-white disabled:opacity-50"
+            className="px-4 py-2 rounded-xl bg-black text-white border border-white disabled:opacity-50"
           >
             產生匯出預覽
           </button>
@@ -212,7 +215,7 @@ export default function PresetsTransferPage() {
         )}
       </section>
 
-      {/* C. 匯入（選檔/貼上 → 預覽 → 套用） */}
+      {/* C. 匯入（選檔/貼上 → 預覽 → 策略 → 套用） */}
       <section className="rounded-2xl border p-4 space-y-3">
         <h2 className="text-lg font-medium">匯入 presets</h2>
 
@@ -237,23 +240,72 @@ export default function PresetsTransferPage() {
           <PasteBox onPaste={handleImport} disabled={busy} />
         </div>
 
-        {importPlan && (
-          <div className="text-sm text-gray-800">
-            將新增 <b>{importPlan.add}</b>、更新 <b>{importPlan.update}</b>、跳過 <b>{importPlan.skip}</b>
+        {/* 策略 + 逐筆覆寫 */}
+        {planDetail && (
+          <div className="space-y-3">
+            <div className="text-sm text-gray-800">
+              預覽結果：新增 <b>{planDetail.summary.add}</b>、更新 <b>{planDetail.summary.update}</b>、相同 <b>{planDetail.summary.same}</b>
+            </div>
+
+            <div className="text-sm font-medium">批次策略</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+              <StrategySelect label="新增" value={defaultAdd} onChange={setDefaultAdd} />
+              <StrategySelect label="更新" value={defaultUpdate} onChange={setDefaultUpdate} />
+              <StrategySelect label="相同" value={defaultSame} onChange={setDefaultSame} />
+            </div>
+
+            <div className="text-sm mt-2">逐筆調整</div>
+            <ul className="max-h-48 overflow-y-auto text-sm border rounded-lg">
+              {planDetail.diffs.map((d) => {
+                const k = d.name;
+                const v = overrides[k] ?? "";
+                return (
+                  <li key={k} className="flex items-center justify-between px-3 py-2 border-b last:border-b-0">
+                    <div>
+                      <b>{d.name}</b>{" "}
+                      <span className="text-gray-500">[{d.status}]</span>
+                    </div>
+                    <select
+                      className="border rounded-lg px-2 py-1"
+                      value={v}
+                      onChange={(e) => {
+                        const val = (e.target.value || "") as ImportDecision | "";
+                        setOverrides((prev) => {
+                          const next = { ...prev };
+                          if (!val) delete next[k];
+                          else next[k] = val;
+                          return next;
+                        });
+                      }}
+                    >
+                      <option value="">（跟隨批次）</option>
+                      <option value="keep">保留本機</option>
+                      <option value="overwrite">匯入覆蓋</option>
+                      <option value="skip">跳過</option>
+                    </select>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         )}
 
         <div className="flex gap-3">
           <button
             onClick={onApplyImport}
-            disabled={busy || !importPlan}
+            disabled={busy || !planDetail}
             className="px-4 py-2 rounded-xl bg-green-700 text-white disabled:opacity-50"
           >
             執行匯入
           </button>
           <button
-            onClick={() => { setImportPlan(null); setLastBundle(null); setMsg(""); }}
-            disabled={busy || !importPlan}
+            onClick={() => {
+              setPlanDetail(null);
+              setLastBundle(null);
+              setMsg("");
+              setOverrides({});
+            }}
+            disabled={busy || !planDetail}
             className="px-4 py-2 rounded-xl border disabled:opacity-50"
           >
             取消
@@ -295,5 +347,30 @@ function PasteBox({
         </button>
       </div>
     </div>
+  );
+}
+
+function StrategySelect({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: ImportDecision;
+  onChange: (v: ImportDecision) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between border rounded-lg px-3 py-2">
+      <span className="text-gray-700">{label}</span>
+      <select
+        className="border rounded-lg px-2 py-1"
+        value={value}
+        onChange={(e) => onChange(e.target.value as ImportDecision)}
+      >
+        <option value="keep">保留本機</option>
+        <option value="overwrite">匯入覆蓋</option>
+        <option value="skip">跳過</option>
+      </select>
+    </label>
   );
 }

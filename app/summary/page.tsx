@@ -1,13 +1,11 @@
-// app/summary/page.tsx
 "use client";
 export const dynamic = "force-static";
-export const fetchCache = "force-cache"
-import { Suspense, useEffect, useState } from "react";
+export const fetchCache = "force-cache";
+
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { exportSessionText } from "@/lib/export/text";
 import { startSession } from "@/lib/db";
-
-
 
 /** 外層只放 Suspense 邊界，避免 Next.js build 對 useSearchParams 的限制 */
 export default function SummaryPage() {
@@ -27,6 +25,21 @@ function SummaryPageInner() {
   const [text, setText] = useState("產生中...");
   const [copied, setCopied] = useState(false);
 
+  // PR3: 可重複使用的載入函式 + 節流控制
+  const lastRefreshRef = useRef<number>(0);
+  const busyRef = useRef(false);
+
+  async function loadText(sid: string) {
+    if (!sid) return;
+    busyRef.current = true;
+    try {
+      const t = await exportSessionText(sid);
+      setText(t);
+    } finally {
+      busyRef.current = false;
+    }
+  }
+
   useEffect(() => {
     let cancelled = false;
 
@@ -42,15 +55,28 @@ function SummaryPageInner() {
         return; // 等下一輪再載入
       }
 
-      const t = await exportSessionText(sid);
-      if (!cancelled) setText(t);
+      await loadText(sid);
     }
 
     run();
+
+    // PR3: 回到前景自動刷新（300ms 節流）
+    function onVis() {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastRefreshRef.current < 300) return;
+      if (busyRef.current) return;
+      lastRefreshRef.current = now;
+      const sid = sp.get("sessionId") ?? "";
+      if (sid) loadText(sid);
+    }
+
+    document.addEventListener("visibilitychange", onVis);
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVis);
     };
-  }, [sessionId, router]);
+  }, [sessionId, router, sp]);
 
   const handleCopy = async () => {
     try {

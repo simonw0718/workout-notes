@@ -1,8 +1,7 @@
-// app/page.tsx
 "use client";
-
+//app/page.tsx
 import Link from "next/link";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   startSession,
@@ -12,6 +11,7 @@ import {
 } from "@/lib/db";
 import { getLatestSession } from "@/lib/db/index";
 import type { Session, Exercise } from "@/lib/models/types";
+import CurrentProgressCard from "@/components/CurrentProgressCard";
 
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
@@ -73,14 +73,23 @@ export default function Home() {
           <h1 className="text-2xl font-bold">Workout Notes</h1>
           <div className="hidden sm:flex items-center gap-2">
             <Link href="/history" className="underline text-sm">歷史</Link>
-            <Link href="/settings" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">
+            <Link
+              href="/settings"
+              className="rounded-xl bg-black text-white border border-white px-3 py-1 text-sm hover:opacity-90"
+            >
               設定
             </Link>
-            <button onClick={handleStart} className="px-3 py-1 rounded-xl bg-black text-white">
+            <button
+              onClick={handleStart}
+              className="px-3 py-1 rounded-xl bg-black text-white border border-white hover:opacity-90"
+            >
               重新開始今天
             </button>
             {isActive && (
-              <button onClick={handleEnd} className="px-3 py-1 rounded-xl border">
+              <button
+                onClick={handleEnd}
+                className="px-3 py-1 rounded-xl bg-black text-white border border-white hover:opacity-90"
+              >
                 結束目前場次
               </button>
             )}
@@ -89,15 +98,24 @@ export default function Home() {
 
         {/* 行動版主要操作列 */}
         <div className="flex sm:hidden gap-2">
-          <button onClick={handleStart} className="flex-1 px-4 py-3 rounded-2xl bg-black text-white">
+          <button
+            onClick={handleStart}
+            className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white"
+          >
             重新開始今天
           </button>
           {isActive ? (
-            <button onClick={handleEnd} className="flex-1 px-4 py-3 rounded-2xl border">
+            <button
+              onClick={handleEnd}
+              className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white"
+            >
               結束
             </button>
           ) : (
-            <Link href="/settings" className="flex-1 px-4 py-3 rounded-2xl border text-center">
+            <Link
+              href="/settings"
+              className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white text-center"
+            >
               設定
             </Link>
           )}
@@ -111,7 +129,7 @@ export default function Home() {
               isActive ? (
                 <Link
                   key={ex.id}
-                  className="rounded-2xl border p-4 text-center hover:bg-gray-50"
+                  className="rounded-2xl bg-black text-white border border-white p-4 text-center hover:opacity-90"
                   href={`/exercise?exerciseId=${ex.id}&sessionId=${session!.id}`}
                 >
                   {ex.name}
@@ -152,7 +170,7 @@ export default function Home() {
             {selected && isActive ? (
               <Link
                 href={`/exercise?exerciseId=${selected}&sessionId=${session!.id}`}
-                className="px-4 py-3 rounded-2xl bg-black text-white"
+                className="px-4 py-3 rounded-2xl bg-black text-white border border-white"
               >
                 前往
               </Link>
@@ -168,6 +186,9 @@ export default function Home() {
           </div>
         </section>
 
+        {/* 本次進度卡（黑底白字） */}
+        <CurrentProgressCard />
+
         {/* 訓練摘要入口 */}
         {session && (
           <div className="pt-2">
@@ -181,17 +202,16 @@ export default function Home() {
       {/* 底部固定捷徑（行動版） */}
       <nav className="sm:hidden fixed bottom-4 inset-x-0 px-4">
         <div className="max-w-screen-sm mx-auto grid grid-cols-4 gap-3">
-          <Link href="/history" className="rounded-2xl border bg-white py-3 text-center shadow-sm">
+          <Link href="/history" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm">
             歷史
           </Link>
-          <Link href="/settings" className="rounded-2xl border bg-white py-3 text-center shadow-sm">
+          <Link href="/settings" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm">
             設定
           </Link>
-          <Link href="/sync" className="rounded-2xl border bg-white py-3 text-center shadow-sm">
-            同步
+          <Link href="/sync" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm">
+            資料搬運
           </Link>
-          {/* ✅ 新增：偵錯（常駐） */}
-          <Link href="/diagnostics" className="rounded-2xl border bg-white py-3 text-center shadow-sm">
+          <Link href="/diagnostics" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm">
             偵錯
           </Link>
         </div>

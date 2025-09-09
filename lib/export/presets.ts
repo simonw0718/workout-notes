@@ -1,11 +1,18 @@
 "use client";
 
-// lib/export/presets.ts
-// 說明：這份檔案只在瀏覽器端使用（含 navigator / IndexedDB），故明確加上 "use client"
+// 說明：這份檔案只在瀏覽器端使用（含 navigator / IndexedDB）
 
-import { ExportBundleV1Schema, Preset, ExportBundleV1 } from "../models/presets";
-// 直接用你設定頁正在用的資料源（同一套 listAllExercises / create / update）
-import { listAllExercises, createExercise, updateExercise } from "../db";
+import { z } from "zod";
+import {
+  ExportBundleV1Schema,
+  Preset,
+  ExportBundleV1,
+  ImportPlanDetailed,
+  ImportDecision,
+  ImportDiff,
+} from "../models/presets";
+// 同一套資料源（listAllExercises / create / update）
+import { listAllExercises, createExercise, updateExercise, addTransferLog } from "../db";
 
 // --- utils ---
 async function sha256Hex(text: string) {
@@ -20,14 +27,13 @@ async function sha256Hex(text: string) {
 async function readPresetsFromExercises(): Promise<Preset[]> {
   const exs = await listAllExercises();
 
-  // 可視化除錯
   try {
     console.debug("[export] exercises count =", exs.length, exs.slice(0, 3));
   } catch {}
 
   const now = new Date().toISOString();
   const presets: Preset[] = exs.map((x: any) => ({
-    uuid: String(x.id ?? x.uuid ?? x.name), // 沒 id 就用 name 撐著（理論上有 id）
+    uuid: String(x.id ?? x.uuid ?? x.name),
     name: x.name,
     unit: x.defaultUnit === "lb" ? "lb" : "kg",
     default_weight: typeof x.defaultWeight === "number" ? x.defaultWeight : undefined,
@@ -65,7 +71,6 @@ export async function exportPresetsAsBlob(): Promise<{ blob: Blob; filename: str
     items,
   };
 
-  // 若真的為空，直接在 Console 明示
   if (!items || items.length === 0) {
     try {
       console.warn("[export] items is EMPTY. Check listAllExercises() / DB content.");
@@ -75,6 +80,17 @@ export async function exportPresetsAsBlob(): Promise<{ blob: Blob; filename: str
   const bundle = await makeBundleWithChecksum(base);
   const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
   const filename = `workoutnotes-presets-${new Date().toISOString().slice(0, 10)}.wkn.json`;
+
+  // 預先寫一筆粗略 log（之後 UI 確認成功再補 source）
+  try {
+    await addTransferLog({
+      type: "export",
+      count: items.length,
+      filename,
+      deviceUA: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
+      notes: "bundle generated",
+    });
+  } catch {}
 
   return { blob, filename, bundle };
 }
@@ -121,6 +137,7 @@ export type ImportPlanByName = {
   skip: Preset[];
 };
 
+// 舊版保留（供相容）；但 UI 請改用 buildImportDiffsByName
 export async function planImportByName(incoming: Preset[]): Promise<ImportPlanByName> {
   const existing = await listAllExercises();
   const byName = new Map(existing.map((e: any) => [e.name, e]));
@@ -132,7 +149,7 @@ export async function planImportByName(incoming: Preset[]): Promise<ImportPlanBy
       plan.add.push(p);
       continue;
     }
-    const curUpdated = cur.updatedAt ? new Date(cur.updatedAt).getTime() : 0;
+    const curUpdated = cur.updatedAt ? Number(cur.updatedAt) : 0;
     const incomingUpdated = p.updatedAt ? new Date(p.updatedAt).getTime() : 0;
     if (incomingUpdated > curUpdated) plan.update.push(p);
     else plan.skip.push(p);
@@ -144,28 +161,111 @@ export async function planImportByName(incoming: Preset[]): Promise<ImportPlanBy
   return plan;
 }
 
-export async function applyImportByName(plan: ImportPlanByName) {
+// --- 新版：輸出完整 diff，支援決策（keep/overwrite/skip） ---
+
+export async function buildImportDiffsByName(incoming: Preset[]): Promise<ImportPlanDetailed> {
+  const existing = await listAllExercises();
+  const byName = new Map(existing.map((e: any) => [e.name, e]));
+  const diffs: ImportDiff[] = [];
+
+  for (const p of incoming) {
+    const cur = byName.get(p.name);
+    if (!cur) {
+      diffs.push({ name: p.name, incoming: p, status: "add" });
+      continue;
+    }
+    const curUpdated = cur.updatedAt ? Number(cur.updatedAt) : 0;
+    const incUpdated = p.updatedAt ? new Date(p.updatedAt).getTime() : 0;
+    if (incUpdated > curUpdated) diffs.push({ name: p.name, incoming: p, status: "update" });
+    else diffs.push({ name: p.name, incoming: p, status: "same" });
+  }
+
+  const summary = {
+    add: diffs.filter((d) => d.status === "add").length,
+    update: diffs.filter((d) => d.status === "update").length,
+    same: diffs.filter((d) => d.status === "same").length,
+  };
+  try {
+    console.debug("[import/diff]", summary, diffs.slice(0, 3));
+  } catch {}
+  return { diffs, summary };
+}
+
+export async function applyImportWithDecisions(opts: {
+  plan: ImportPlanDetailed;
+  defaultDecisionForAdd?: ImportDecision; // 預設 overwrite
+  defaultDecisionForUpdate?: ImportDecision; // 預設 overwrite
+  defaultDecisionForSame?: ImportDecision; // 預設 skip
+  perItem?: Record<string, ImportDecision>; // key = name
+}) {
+  const {
+    plan,
+    defaultDecisionForAdd = "overwrite",
+    defaultDecisionForUpdate = "overwrite",
+    defaultDecisionForSame = "skip",
+    perItem = {},
+  } = opts;
+
   const existing = await listAllExercises();
   const byName = new Map(existing.map((e: any) => [e.name, e]));
 
-  for (const p of plan.add) {
-    await createExercise({
-      name: p.name,
-      defaultWeight: p.default_weight,
-      defaultReps: p.default_reps,
-      defaultUnit: p.unit === "lb" ? "lb" : "kg",
-      isFavorite: false,
-    });
+  let appliedCount = 0;
+
+  for (const d of plan.diffs) {
+    const decision =
+      perItem[d.name] ??
+      d.decision ??
+      (d.status === "add"
+        ? defaultDecisionForAdd
+        : d.status === "update"
+        ? defaultDecisionForUpdate
+        : defaultDecisionForSame);
+
+    if (decision === "skip" || decision === "keep") continue;
+
+    const p = d.incoming;
+    const asUnit = p.unit === "lb" ? "lb" : "kg";
+
+    if (d.status === "add") {
+      await createExercise({
+        name: p.name,
+        defaultWeight: p.default_weight ?? null,
+        defaultReps: p.default_reps ?? null,
+        defaultUnit: asUnit,
+        isFavorite: false,
+      });
+      appliedCount++;
+    } else {
+      const cur = byName.get(p.name);
+      if (!cur) {
+        // 意外：狀態為 update 但本機查無 → 視為新增
+        await createExercise({
+          name: p.name,
+          defaultWeight: p.default_weight ?? null,
+          defaultReps: p.default_reps ?? null,
+          defaultUnit: asUnit,
+          isFavorite: false,
+        });
+        appliedCount++;
+      } else {
+        await updateExercise({
+          id: cur.id,
+          name: cur.name,
+          defaultWeight: p.default_weight ?? null,
+          defaultReps: p.default_reps ?? null,
+          defaultUnit: asUnit,
+        });
+        appliedCount++;
+      }
+    }
   }
 
-  for (const p of plan.update) {
-    const cur = byName.get(p.name);
-    if (!cur) continue;
-    await updateExercise({
-      id: cur.id,
-      defaultWeight: p.default_weight,
-      defaultReps: p.default_reps,
-      defaultUnit: p.unit === "lb" ? "lb" : (cur.defaultUnit ?? "kg"),
+  try {
+    await addTransferLog({
+      type: "import",
+      count: appliedCount,
+      source: "paste", // 若使用選檔可不填或由呼叫端覆寫
+      deviceUA: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
     });
-  }
+  } catch {}
 }
