@@ -25,6 +25,7 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:3100",
     "http://127.0.0.1:3100",
+    "http://192.168.31.241:3100",
 
     # 手機連前端的位址 (請換成你自己的區網 IP)
     "http://192.168.31.241:3000",
@@ -35,8 +36,8 @@ ALLOWED_ORIGINS = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,   # 要送 token header → 建議開啟
+    allow_origin_regex=r"http://192\.168\.\d{1,3}\.\d{1,3}(:\d+)?",  # 允許任何 192.168.x.x
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

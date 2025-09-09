@@ -60,14 +60,32 @@ export default function SyncPage() {
     <main className="p-6 max-w-2xl mx-auto space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">同步（多裝置配對）</h1>
-        {/* 這一段就是原本 77–80 行的位置；寫成標準的 Next Link */}
-        <Link
-          href="/"
-          className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50"
-        >
-          回首頁
-        </Link>
+        <div className="flex items-center gap-2">
+          {/* 顯眼的偵錯入口（桌面 / 大螢幕） */}
+          <Link
+            href="/diagnostics"
+            className="hidden sm:inline-block rounded-xl px-3 py-2 text-sm bg-red-600 text-white hover:bg-red-700"
+          >
+            🚨 偵錯
+          </Link>
+          <Link
+            href="/"
+            className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50"
+          >
+            回首頁
+          </Link>
+        </div>
       </header>
+
+      {/* 🚨 顯眼的偵錯入口（手機 / 小螢幕） */}
+      <div className="sm:hidden">
+        <Link
+          href="/diagnostics"
+          className="block w-full py-3 rounded-2xl bg-red-600 text-white text-center font-bold text-lg shadow"
+        >
+          🚨 偵錯
+        </Link>
+      </div>
 
       {/* 目前本機 */}
       <section className="space-y-3">

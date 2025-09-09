@@ -1,4 +1,6 @@
 "use client";
+export const dynamic = "force-static";
+export const fetchCache = "force-cache";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -23,7 +25,7 @@ export default function HistoryDetailPage() {
   const [sets, setSets] = useState<SetRecord[]>([]);
   const [exMap, setExMap] = useState<Record<string, Exercise>>({});
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false); // 刪除/匯出等操作時的防連點
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -36,7 +38,6 @@ export default function HistoryDetailPage() {
       }
 
       const db = await getDB();
-
       const s = (await db.get("sessions", sessionId)) as Session | undefined;
       const ss = await listSetsBySession(sessionId);
 
@@ -73,15 +74,12 @@ export default function HistoryDetailPage() {
 
   const handleDelete = useCallback(async () => {
     if (!sessionId || busy) return;
-    const ok = window.confirm(
-      "確定要刪除此場次以及其所有紀錄嗎？此動作無法復原。",
-    );
+    const ok = window.confirm("確定要刪除此場次以及其所有紀錄嗎？此動作無法復原。");
     if (!ok) return;
 
     try {
       setBusy(true);
       await deleteSessionWithSets(sessionId);
-      // 刪除成功，回列表
       router.push("/history");
     } catch (e) {
       console.error("[deleteSessionWithSets] failed:", e);
@@ -94,7 +92,6 @@ export default function HistoryDetailPage() {
   const handleExport = useCallback(() => {
     if (!session) return;
 
-    // 封裝導出資料
     const payload = {
       session,
       sets,
@@ -117,7 +114,6 @@ export default function HistoryDetailPage() {
     a.download = `workout-${stamp}-${session.id.slice(0, 8)}.json`;
     a.click();
 
-    // 釋放 URL
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }, [session, sets, exMap, agg]);
 
@@ -136,7 +132,7 @@ export default function HistoryDetailPage() {
       <main className="p-6 space-y-6">
         <header className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">歷史詳情</h1>
-          <Link href="/history" className="underline">
+          <Link href="/history" prefetch={false} className="underline">
             回歷史列表
           </Link>
         </header>
@@ -150,7 +146,7 @@ export default function HistoryDetailPage() {
       <main className="p-6 space-y-6">
         <header className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">歷史詳情</h1>
-          <Link href="/history" className="underline">
+          <Link href="/history" prefetch={false} className="underline">
             回歷史列表
           </Link>
         </header>
@@ -172,7 +168,7 @@ export default function HistoryDetailPage() {
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">歷史詳情</h1>
         <div className="flex items-center gap-3">
-          <Link href="/history" className="underline">
+          <Link href="/history" prefetch={false} className="underline">
             回歷史列表
           </Link>
 
@@ -208,19 +204,13 @@ export default function HistoryDetailPage() {
       <section className="space-y-1">
         <div>場次：{started}</div>
         <div>狀態：{status}</div>
-        <div className="text-sm text-gray-600 break-all">
-          sessionId：{session.id}
-        </div>
-        <div>
-          動作：{agg.exerciseCount}　組數：{agg.setsCount}　總量：{agg.total}
-        </div>
+        <div className="text-sm text-gray-600 break-all">sessionId：{session.id}</div>
+        <div>動作：{agg.exerciseCount}　組數：{agg.setsCount}　總量：{agg.total}</div>
       </section>
 
       {/* 分組明細 */}
       <section className="space-y-4">
-        {sets.length === 0 && (
-          <p className="text-gray-500">此場次尚無任何紀錄。</p>
-        )}
+        {sets.length === 0 && <p className="text-gray-500">此場次尚無任何紀錄。</p>}
         {sets.map((r) => {
           const ex = exMap[r.exerciseId];
           return (
@@ -228,8 +218,7 @@ export default function HistoryDetailPage() {
               <div className="font-medium">{ex?.name ?? "(未知動作)"}</div>
               <div className="text-sm text-gray-600">
                 {r.weight} {r.unit ?? "kg"} × {r.reps}
-                {r.rpe ? `，RPE ${r.rpe}` : ""}　@{" "}
-                {new Date(r.createdAt).toLocaleTimeString()}
+                {r.rpe ? `，RPE ${r.rpe}` : ""}　@ {new Date(r.createdAt).toLocaleTimeString()}
               </div>
             </div>
           );

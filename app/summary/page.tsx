@@ -1,10 +1,13 @@
 // app/summary/page.tsx
 "use client";
-
+export const dynamic = "force-static";
+export const fetchCache = "force-cache"
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { exportSessionText } from "@/lib/export/text";
 import { startSession } from "@/lib/db";
+
+
 
 /** 外層只放 Suspense 邊界，避免 Next.js build 對 useSearchParams 的限制 */
 export default function SummaryPage() {

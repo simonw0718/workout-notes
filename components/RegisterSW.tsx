@@ -1,105 +1,93 @@
-// components/RegisterSW.tsx
 "use client";
-
-import { useEffect, useRef, useState } from "react";
-
-type SWReg = ServiceWorkerRegistration | null;
+import { useEffect } from "react";
 
 export default function RegisterSW() {
-  const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
-  const [show, setShow] = useState(false);
-  const regRef = useRef<SWReg>(null);
-
   useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    const isSecure =
+      typeof window !== "undefined" &&
+      (location.protocol === "https:" ||
+        location.hostname === "localhost" ||
+        location.hostname === "127.0.0.1");
+
+    if (!("serviceWorker" in navigator) || !isSecure) {
+      console.log("[SW] skip (insecure or unsupported)");
       return;
     }
 
-    let unbindControllerChange: (() => void) | null = null;
+    const RELOAD_FLAG = "sw-hard-reload-once";
+    const COMMON_ROUTES = ["/", "/history", "/settings", "/sync", "/summary", "/diagnostics"];
 
-    const onControllerChange = () => {
-      // 新 SW 接管後，重新整理讓新快取生效
-      window.location.reload();
-    };
-
-    const register = async () => {
+    async function warmFromManifest() {
+      if (!navigator.serviceWorker.controller) return;
       try {
-        // 你的 sw.js 放在 /public 根目錄；scope 設為整站
-        const reg = await navigator.serviceWorker.register("/sw.js", {
-          scope: "/",
-        });
-        regRef.current = reg;
+        const res = await fetch("/precache-assets.json", { cache: "no-cache" });
+        if (!res.ok) return;
+        const json = await res.json();
+        const list: string[] = Array.isArray(json) ? json : (json.assets ?? []);
+        const origin = location.origin;
+        const urls = Array.from(new Set(list.map((p) => (p.startsWith("http") ? p : origin + p))));
+        console.log("[SW] warm-from-manifest urls:", urls.length);
+        navigator.serviceWorker.controller!.postMessage({ type: "WARM_CACHE", urls });
+      } catch {}
+    }
 
-        // 若已有 waiting（表示有新版本），顯示更新提示
-        if (reg.waiting) {
-          setWaiting(reg.waiting);
-          setShow(true);
-        }
+    async function warmRoutes() {
+      if (!navigator.serviceWorker.controller) return;
+      const urls = COMMON_ROUTES.map((p) => new URL(p, location.origin).toString());
+      navigator.serviceWorker.controller!.postMessage({ type: "WARM_CACHE", urls });
+    }
 
-        // 新 SW 安裝完成 -> 進入 waiting
+    navigator.serviceWorker.addEventListener("message", (ev) => {
+      if (ev?.data === "READY") setTimeout(() => { warmFromManifest(); warmRoutes(); }, 120);
+    });
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      setTimeout(() => { warmFromManifest(); warmRoutes(); }, 150);
+    });
+
+    (async () => {
+      try {
+        const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+        console.log("[SW] registered:", reg.scope);
+
+        if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
+
         reg.addEventListener("updatefound", () => {
           const sw = reg.installing;
           if (!sw) return;
-
           sw.addEventListener("statechange", () => {
-            if (sw.state === "installed" && navigator.serviceWorker.controller) {
-              // 有舊版控制頁面，同時新 SW 安裝就緒
-              setWaiting(reg.waiting);
-              setShow(true);
-            }
+            if (sw.state === "installed" && reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
           });
         });
 
-        // 當舊 SW 交棒給新 SW
-        navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
-        unbindControllerChange = () => {
-          navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
-        };
-      } catch {
-        // 離線或其他原因註冊失敗時，靜默即可
+        await navigator.serviceWorker.ready;
+
+        if (!navigator.serviceWorker.controller) {
+          const once = sessionStorage.getItem(RELOAD_FLAG);
+          if (!once) {
+            sessionStorage.setItem(RELOAD_FLAG, "1");
+            console.log("[SW] forcing one-time reload to gain control");
+            location.reload();
+            return;
+          } else {
+            console.warn("[SW] still no controller after reload");
+          }
+        } else {
+          warmFromManifest();
+          warmRoutes();
+        }
+
+        // 回前景 / 網路恢復時再補暖（iOS 常見）
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") setTimeout(() => { warmFromManifest(); warmRoutes(); }, 300);
+        });
+        window.addEventListener("online", () => {
+          setTimeout(() => { warmFromManifest(); warmRoutes(); }, 200);
+        });
+      } catch (err) {
+        console.warn("[SW] register failed:", err);
       }
-    };
-
-    register();
-
-    return () => {
-      if (unbindControllerChange) unbindControllerChange();
-    };
+    })();
   }, []);
 
-  const handleUpdate = () => {
-    if (!waiting) return;
-
-    // 要求 waiting SW 立刻啟用
-    waiting.postMessage("SKIP_WAITING");
-
-    // iOS/Safari 有時不及時觸發 controllerchange，設置保險
-    setTimeout(() => {
-      if (!navigator.serviceWorker.controller) {
-        window.location.reload();
-      }
-    }, 1200);
-  };
-
-  // 沒有更新就不顯示任何 UI（保持與現有頁面相容）
-  if (!show) return null;
-
-  return (
-    <div className="fixed inset-x-0 bottom-6 mx-auto w-fit rounded-xl bg-black/80 text-white px-4 py-2 shadow-lg z-[1000]">
-      <span className="mr-3">有新版本可用</span>
-      <button
-        onClick={handleUpdate}
-        className="rounded-lg bg-white text-black px-3 py-1 hover:bg-gray-100"
-      >
-        立即更新
-      </button>
-      <button
-        onClick={() => setShow(false)}
-        className="ml-2 px-2 py-1 text-sm opacity-80 hover:opacity-100"
-        aria-label="dismiss"
-      >
-        關閉
-      </button>
-    </div>
-  );
+  return null;
 }

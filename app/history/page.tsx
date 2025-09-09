@@ -1,6 +1,7 @@
 // app/history/page.tsx
 "use client";
-
+export const dynamic = "force-static";
+export const fetchCache = "force-cache"
 import Link from "next/link";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { getDB, deleteSessionWithSets, deleteAllHistory } from "@/lib/db";
@@ -12,6 +13,8 @@ type Row = {
   totalVolume?: number;
   setsCount?: number;
 };
+
+
 
 export default function HistoryListPage() {
   const [items, setItems] = useState<Row[]>([]);

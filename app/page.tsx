@@ -1,3 +1,4 @@
+// app/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -38,9 +39,7 @@ export default function Home() {
         setSession(null);
       }
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, []);
 
   const handleStart = async () => {
@@ -73,19 +72,11 @@ export default function Home() {
         <header className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Workout Notes</h1>
           <div className="hidden sm:flex items-center gap-2">
-            <Link href="/history" className="underline text-sm">
-              歷史
-            </Link>
-            <Link
-              href="/settings"
-              className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50"
-            >
+            <Link href="/history" className="underline text-sm">歷史</Link>
+            <Link href="/settings" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">
               設定
             </Link>
-            <button
-              onClick={handleStart}
-              className="px-3 py-1 rounded-xl bg-black text-white"
-            >
+            <button onClick={handleStart} className="px-3 py-1 rounded-xl bg-black text-white">
               重新開始今天
             </button>
             {isActive && (
@@ -98,24 +89,15 @@ export default function Home() {
 
         {/* 行動版主要操作列 */}
         <div className="flex sm:hidden gap-2">
-          <button
-            onClick={handleStart}
-            className="flex-1 px-4 py-3 rounded-2xl bg-black text-white"
-          >
+          <button onClick={handleStart} className="flex-1 px-4 py-3 rounded-2xl bg-black text-white">
             重新開始今天
           </button>
           {isActive ? (
-            <button
-              onClick={handleEnd}
-              className="flex-1 px-4 py-3 rounded-2xl border"
-            >
+            <button onClick={handleEnd} className="flex-1 px-4 py-3 rounded-2xl border">
               結束
             </button>
           ) : (
-            <Link
-              href="/settings"
-              className="flex-1 px-4 py-3 rounded-2xl border text-center"
-            >
+            <Link href="/settings" className="flex-1 px-4 py-3 rounded-2xl border text-center">
               設定
             </Link>
           )}
@@ -163,9 +145,7 @@ export default function Home() {
             >
               <option value="">— 選擇動作 —</option>
               {all.map((ex) => (
-                <option key={ex.id} value={ex.id}>
-                  {ex.name}
-                </option>
+                <option key={ex.id} value={ex.id}>{ex.name}</option>
               ))}
             </select>
 
@@ -191,10 +171,7 @@ export default function Home() {
         {/* 訓練摘要入口 */}
         {session && (
           <div className="pt-2">
-            <Link
-              href={`/summary?sessionId=${session.id}`}
-              className="underline text-sm"
-            >
+            <Link href={`/summary?sessionId=${session.id}`} className="underline text-sm">
               查看本次訓練摘要
             </Link>
           </div>
@@ -203,24 +180,19 @@ export default function Home() {
 
       {/* 底部固定捷徑（行動版） */}
       <nav className="sm:hidden fixed bottom-4 inset-x-0 px-4">
-        <div className="max-w-screen-sm mx-auto grid grid-cols-3 gap-3">
-          <Link
-            href="/history"
-            className="rounded-2xl border bg-white py-3 text-center shadow-sm"
-          >
+        <div className="max-w-screen-sm mx-auto grid grid-cols-4 gap-3">
+          <Link href="/history" className="rounded-2xl border bg-white py-3 text-center shadow-sm">
             歷史
           </Link>
-          <Link
-            href="/settings"
-            className="rounded-2xl border bg-white py-3 text-center shadow-sm"
-          >
+          <Link href="/settings" className="rounded-2xl border bg-white py-3 text-center shadow-sm">
             設定
           </Link>
-          <Link
-            href="/sync"
-            className="rounded-2xl border bg-white py-3 text-center shadow-sm"
-          >
+          <Link href="/sync" className="rounded-2xl border bg-white py-3 text-center shadow-sm">
             同步
+          </Link>
+          {/* ✅ 新增：偵錯（常駐） */}
+          <Link href="/diagnostics" className="rounded-2xl border bg-white py-3 text-center shadow-sm">
+            偵錯
           </Link>
         </div>
       </nav>

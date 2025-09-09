@@ -17,12 +17,7 @@ export default function ClientInit() {
         }
 
         // 初始同步：帶空 changes，避免 422
-        await syncNow({
-          deviceId: meta.deviceId,
-          token: meta.token,
-          lastVersion: meta.lastServerVersion ?? 0,
-          changes: { sessions: [], exercises: [], sets: [] },
-        });
+ await syncNow();
 
         // 成功就結束；若需更新 lastServerVersion / 寫回 meta，自行在這裡接續
       } catch (e) {

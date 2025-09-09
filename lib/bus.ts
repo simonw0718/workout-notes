@@ -21,3 +21,6 @@ export function emitFavoritesChanged() {
     }
   }
 }
+// lib/bus.ts
+export const offlineChanged =
+  typeof window !== "undefined" ? new EventTarget() : { addEventListener() {}, removeEventListener() {}, dispatchEvent() {} };

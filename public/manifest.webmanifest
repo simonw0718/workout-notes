@@ -2,7 +2,7 @@
   "name": "Workout Notes",
   "short_name": "Workout",
   "description": "快速記錄訓練組數、重量、次數；離線可用，支援安裝到主畫面。",
-  "start_url": "/",
+  "start_url": "/start.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#111827",

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>啟動中…</title>
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <style>
+    body{margin:0;background:#000;color:#fff;display:flex;min-height:100vh;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto}
+    .box{text-align:center}
+    .btn{margin-top:12px;padding:10px 14px;border-radius:10px;background:#222;color:#fff;border:1px solid #444}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div>啟動中…</div>
+    <button class="btn">進入 App</button>
+    <div style="opacity:.6;margin-top:6px;font-size:13px">無網也可用；連到同一區網可同步</div>
+  </div>
+  <script>
+    (function(){
+      const go = () => location.assign("/");
+      const t = setTimeout(go, 2000);
+      document.querySelector(".btn")?.addEventListener("click", e => {
+        e.preventDefault(); clearTimeout(t); go();
+      });
+
+      if ("serviceWorker" in navigator) {
+        const secure = location.protocol === "https:" ||
+                       location.hostname === "localhost" ||
+                       location.hostname === "127.0.0.1";
+        if (secure) {
+          navigator.serviceWorker.register("/sw.js", { scope: "/" }).then(reg => {
+            if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
+            navigator.serviceWorker.addEventListener("controllerchange", () => {
+              try { clearTimeout(t); } catch{}
+              go();
+            });
+          }).catch(err => {
+            console.warn("[start] SW register failed:", err);
+          });
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

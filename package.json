@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "dev:lan": "next dev -H 0.0.0.0 -p 3100",
+    "dev:lan": "next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
-    "start": "next start -H 0.0.0.0 -p 3100",
+    "postbuild": "node scripts/gen-precache.mjs",
+    "start": "next start -p 3000",
     "lint": "next lint",
     "fmt": "prettier --write .",
     "format:check": "prettier --check .",
