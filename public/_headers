@@ -1,4 +1,5 @@
 /sw.js
+  Content-Type: application/javascript; charset=utf-8
   Cache-Control: no-cache, no-store, must-revalidate
   Service-Worker-Allowed: /
 
@@ -6,17 +7,14 @@
   Content-Type: application/manifest+json; charset=utf-8
   Cache-Control: no-store
 
+/precache-assets.json
+  Cache-Control: no-cache
+
 /*.html
   Cache-Control: no-store
 
 /
   Cache-Control: no-store
-
-/start.html
-  Cache-Control: no-store
-
-/precache-assets.json
-  Cache-Control: no-cache
 
 /_next/*
   Cache-Control: public, max-age=31536000, immutable
