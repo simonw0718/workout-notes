@@ -1,7 +1,7 @@
 "use client";
-//app/page.tsx
+// app/page.tsx
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 
 import {
   startSession,
@@ -9,7 +9,8 @@ import {
   listFavorites,
   listAllExercises,
 } from "@/lib/db";
-import { getLatestSession } from "@/lib/db/index";
+import { getLatestSession } from "@/lib/db";
+
 import type { Session, Exercise } from "@/lib/models/types";
 import CurrentProgressCard from "@/components/CurrentProgressCard";
 
@@ -19,44 +20,122 @@ export default function Home() {
   const [all, setAll] = useState<Exercise[]>([]);
   const [selected, setSelected] = useState<string>("");
 
+  // === SW 狀態（頁面底部顯示；不再有浮動提示） ===
+  const [swControlled, setSwControlled] = useState<boolean | null>(null);
+  const [swFileName, setSwFileName] = useState<string | null>(null);
+  const [swShellVersion, setSwShellVersion] = useState<string | null>(null); // e.g. workout-shell-v4.5.8
+
+  // 只要 session 存在且「尚未結束」就視為訓練中
   const isActive = useMemo(() => !!(session && !session.endedAt), [session]);
 
   useEffect(() => {
     let alive = true;
+
     (async () => {
       try {
-        const s = await getLatestSession();
-        const favs = await listFavorites();
-        const exAll = await listAllExercises();
+        const [s, favs, exAll] = await Promise.allSettled([
+          getLatestSession(),
+          listFavorites(),
+          listAllExercises(),
+        ]);
         if (!alive) return;
-        setSession(s ?? null);
-        setFavorites(favs ?? []);
-        setAll(exAll ?? []);
+
+        setSession(s.status === "fulfilled" ? (s.value ?? null) : null);
+        setFavorites(favs.status === "fulfilled" ? (favs.value ?? []) : []);
+        setAll(exAll.status === "fulfilled" ? (exAll.value ?? []) : []);
       } catch (e) {
         console.error("[Home] init failed:", e);
+        setSession(null);
         setFavorites([]);
         setAll([]);
-        setSession(null);
       }
     })();
-    return () => { alive = false; };
+
+    // === 讀取 SW 狀態與 workout-shell 版本（顯示在頁面底部） ===
+    (async () => {
+      try {
+        // 1) 是否受 SW 控制
+        const controlled = !!navigator.serviceWorker?.controller;
+        setSwControlled(controlled);
+
+        // 2) 取得目前註冊的 SW 檔案 URL
+        const reg = await navigator.serviceWorker?.getRegistration?.();
+        const url =
+          reg?.active?.scriptURL ||
+          reg?.waiting?.scriptURL ||
+          reg?.installing?.scriptURL ||
+          null;
+
+        // 檔名（備援顯示）
+        const file = url ? url.split("/").pop() || "sw.js" : "sw.js";
+        setSwFileName(file);
+
+        // 3) 擷取 workout-shell 版本字串（e.g. "workout-shell-v4.5.8"）
+        //    會去抓 SW 檔案內容，找 const VERSION = "vX.Y.Z" 或直接找 "workout-shell-vX.Y.Z"
+        let shell: string | null = null;
+        if (url) {
+          try {
+            const res = await fetch(url, { cache: "no-store" });
+            const js = await res.text();
+
+            // a) 先找 const VERSION = "v4.5.8"
+            const m1 = js.match(/const\s+VERSION\s*=\s*["'`](v[\d.]+)["'`]/);
+            if (m1 && m1[1]) {
+              shell = `workout-shell-${m1[1]}`;
+            } else {
+              // b) 找到直接出現的 workout-shell-v4.5.8
+              const m2 = js.match(/workout-shell-(v[\d.]+)/);
+              if (m2 && m2[1]) shell = `workout-shell-${m2[1]}`;
+            }
+          } catch (e) {
+            // 同源抓取失敗就忽略，改用檔名備援
+            console.warn("[Home] fetch SW script failed:", e);
+          }
+        }
+        setSwShellVersion(shell);
+
+        // 4) 極端情況：若仍有舊版「浮動 SW 提示」DOM，直接隱藏
+        try {
+          document
+            .querySelectorAll('[data-sw-toast], #sw-toast, .sw-floating-badge')
+            .forEach((el) => (el as HTMLElement).style.display = "none");
+        } catch {}
+      } catch {
+        setSwControlled(false);
+        setSwFileName("sw.js");
+        setSwShellVersion(null);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const handleStart = async () => {
-    const s = await startSession();
-    setSession(s);
+    try {
+      const s = await startSession();
+      setSession(s ?? null);
+    } catch (e) {
+      console.error("[Home] startSession failed:", e);
+    }
   };
 
   const handleEnd = async () => {
     if (!session) return;
-    await endSession(session.id);
-    const s = await getLatestSession();
-    setSession(s ?? null);
+    try {
+      await endSession(session.id);
+      const s = await getLatestSession();
+      setSession(s ?? null);
+    } catch (e) {
+      console.error("[Home] endSession failed:", e);
+    }
   };
 
   return (
     <main className="min-h-[100dvh] bg-white">
-      <div className="max-w-screen-sm mx-auto px-4 py-6 space-y-6">
+      {/* 內容加下邊界，避免被行動版底部捷徑遮住 */}
+      <div className="max-w-screen-sm mx-auto px-4 py-6 space-y-6 pb-24 sm:pb-6">
         {/* 狀態 Banner */}
         <div className="w-full flex justify-center">
           <div
@@ -125,12 +204,15 @@ export default function Home() {
         <section>
           <h2 className="font-semibold mb-2">常用動作</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {favorites.length === 0 && (
+              <div className="text-gray-500">尚未設定常用動作</div>
+            )}
             {favorites.map((ex) =>
-              isActive ? (
+              isActive && session ? (
                 <Link
                   key={ex.id}
                   className="rounded-2xl bg-black text-white border border-white p-4 text-center hover:opacity-90"
-                  href={`/exercise?exerciseId=${ex.id}&sessionId=${session!.id}`}
+                  href={`/exercise?exerciseId=${encodeURIComponent(ex.id)}&sessionId=${encodeURIComponent(session.id)}`}
                 >
                   {ex.name}
                 </Link>
@@ -138,15 +220,12 @@ export default function Home() {
                 <button
                   key={ex.id}
                   disabled
-                  className="rounded-2xl border p-4 text-center bg-gray-100 text-gray-400 cursor-not-allowed"
+                  className="rounded-2xl border border-neutral-700 p-4 text-center bg-neutral-800 text-neutral-300 cursor-not-allowed"
                   aria-disabled="true"
                 >
                   {ex.name}
                 </button>
-              ),
-            )}
-            {favorites.length === 0 && (
-              <div className="text-gray-500">尚未設定常用動作</div>
+              )
             )}
           </div>
         </section>
@@ -167,9 +246,9 @@ export default function Home() {
               ))}
             </select>
 
-            {selected && isActive ? (
+            {selected && isActive && session ? (
               <Link
-                href={`/exercise?exerciseId=${selected}&sessionId=${session!.id}`}
+                href={`/exercise?exerciseId=${encodeURIComponent(selected)}&sessionId=${encodeURIComponent(session.id)}`}
                 className="px-4 py-3 rounded-2xl bg-black text-white border border-white"
               >
                 前往
@@ -177,7 +256,7 @@ export default function Home() {
             ) : (
               <button
                 disabled
-                className="px-4 py-3 rounded-2xl bg-gray-200 text-gray-500 cursor-not-allowed"
+                className="px-4 py-3 rounded-2xl bg-gray-200 text-gray-400 border border-gray-200 cursor-not-allowed"
                 aria-disabled="true"
               >
                 前往
@@ -186,17 +265,29 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 本次進度卡（黑底白字） */}
-        <CurrentProgressCard />
+        {/* 本次進度卡 */}
+        <Suspense fallback={null}>
+          <CurrentProgressCard />
+        </Suspense>
 
         {/* 訓練摘要入口 */}
         {session && (
           <div className="pt-2">
-            <Link href={`/summary?sessionId=${session.id}`} className="underline text-sm">
+            <Link
+              href={`/summary?sessionId=${encodeURIComponent(session.id)}`}
+              className="underline text-sm"
+            >
               查看本次訓練摘要
             </Link>
           </div>
         )}
+
+        {/* 固定在內容最底的 SW 狀態列（不再有浮動訊息） */}
+        <div className="pt-2 text-center text-xs text-gray-500">
+          SW: {swControlled === null ? "—" : swControlled ? "controlled" : "not controlled"}
+          {" · "}
+          {swShellVersion ?? swFileName ?? "sw.js"}
+        </div>
       </div>
 
       {/* 底部固定捷徑（行動版） */}

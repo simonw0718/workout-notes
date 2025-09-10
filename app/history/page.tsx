@@ -14,14 +14,6 @@ import {
   listSetsBySessionSafe,
 } from "@/lib/db";
 import type { Session, SetRecord } from "@/lib/models/types";
-import {
-  exportHistoryAsBlob,
-  triggerDownload,
-  tryShareFile,
-  parseAndValidateHistory,
-  applyImportHistory,
-} from "@/lib/export/history";
-import type { ExportHistoryV1 } from "@/lib/models/history";
 
 type Row = { s: Session; totalVolume?: number; setsCount?: number };
 
@@ -62,15 +54,6 @@ function HistoryInner() {
     [items, currentId],
   );
 
-  // 匯出/匯入狀態
-  const [pendingExport, setPendingExport] =
-    useState<{ bundle: ExportHistoryV1; blob: Blob; filename: string } | null>(null);
-  const [importPreview, setImportPreview] =
-    useState<{ sessions: number; sets: number } | null>(null);
-  const [lastBundle, setLastBundle] = useState<ExportHistoryV1 | null>(null);
-  const [overwrite, setOverwrite] = useState<boolean>(false);
-  const [msg, setMsg] = useState<string>("");
-
   const load = useCallback(async () => {
     const db = await getDB();
     const all = (await db.getAll("sessions")) as Session[];
@@ -95,9 +78,7 @@ function HistoryInner() {
       if (!alive) return;
       setSets(list ?? []);
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [currentId]);
 
   const allChecked = useMemo(
@@ -150,77 +131,6 @@ function HistoryInner() {
     }
   };
 
-  // 匯出
-  async function onPrepareExport() {
-    try {
-      setBusy(true);
-      setMsg("");
-      const r = await exportHistoryAsBlob();
-      setPendingExport(r);
-      setMsg(`已產生匯出預覽：sessions=${r.bundle.sessions.length}、sets=${r.bundle.sets.length}`);
-    } catch (e: any) {
-      setMsg(`匯出預覽失敗：${e?.message ?? e}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onConfirmExport() {
-    if (!pendingExport) return;
-    try {
-      setBusy(true);
-      const { blob, filename, bundle } = pendingExport;
-      const shared = await tryShareFile(blob, filename);
-      if (shared) setMsg(`已透過分享送出，sessions=${bundle.sessions.length}、sets=${bundle.sets.length}`);
-      else {
-        await triggerDownload(blob, filename);
-        // 修正 sets 顯示：不要誤印成 sessions
-        setMsg(`已下載檔案，sessions=${bundle.sessions.length}、sets=${bundle.sets.length}`);
-      }
-      setPendingExport(null);
-    } catch (e: any) {
-      setMsg(`匯出失敗：${e?.message ?? e}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // 匯入
-  async function handleImportText(text: string) {
-    try {
-      setBusy(true);
-      setMsg("驗證中…");
-      const bundle = await parseAndValidateHistory(text);
-      setLastBundle(bundle);
-      setImportPreview({ sessions: bundle.sessions.length, sets: bundle.sets.length });
-      setMsg("預覽完成，確認後執行匯入。");
-    } catch (e: any) {
-      setLastBundle(null);
-      setImportPreview(null);
-      setMsg(`匯入檢查失敗：${e?.message ?? e}`);
-    } finally {
-           setBusy(false);
-    }
-  }
-
-  async function onApplyImport() {
-    if (!lastBundle) return;
-    try {
-      setBusy(true);
-      setMsg("寫入中…");
-      const applied = await applyImportHistory({ bundle: lastBundle, overwriteExisting: overwrite });
-      setMsg(`完成：寫入 ${applied} 筆（${overwrite ? "含覆蓋" : "不覆蓋"}）。`);
-      await load();
-      setLastBundle(null);
-      setImportPreview(null);
-      setOverwrite(false);
-    } catch (e: any) {
-      setMsg(`寫入失敗：${e?.message ?? e}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <main className="max-w-screen-lg mx-auto p-6 space-y-6">
       {/* Header + 工具列 */}
@@ -242,7 +152,6 @@ function HistoryInner() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 左：清單 + 批次工具 */}
         <section className="space-y-4">
-          {/* 批次工具列 */}
           <div className="flex items-center gap-3">
             <button onClick={toggleAll} className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">
               {allChecked ? "取消全選" : "全選"}
@@ -305,7 +214,7 @@ function HistoryInner() {
           </div>
         </section>
 
-        {/* 右：場次明細（選到才顯示） */}
+        {/* 右：場次明細 */}
         <section className="space-y-3">
           <div className="rounded-2xl border p-4">
             <div className="flex items-center justify-between">
@@ -348,143 +257,6 @@ function HistoryInner() {
           </div>
         </section>
       </div>
-
-      {/* 備份（匯出） */}
-      <section className="rounded-2xl border p-4 space-y-3">
-        <h2 className="text-lg font-medium">備份（匯出歷史）</h2>
-        {!pendingExport ? (
-          <button
-            onClick={onPrepareExport}
-            disabled={busy}
-            className="px-4 py-2 rounded-xl bg-black text-white border border-white disabled:opacity-50"
-          >
-            產生匯出預覽
-          </button>
-        ) : (
-          <div className="space-y-2">
-            <div className="text-sm">
-              預覽：sessions=<b>{pendingExport.bundle.sessions.length}</b>、sets=<b>{pendingExport.bundle.sets.length}</b>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={onConfirmExport}
-                disabled={busy}
-                className="px-4 py-2 rounded-xl bg-green-700 text-white border border-white disabled:opacity-50"
-              >
-                確認匯出
-              </button>
-              <button
-                onClick={() => setPendingExport(null)}
-                disabled={busy}
-                className="px-4 py-2 rounded-xl border disabled:opacity-50"
-              >
-                取消
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* 還原（匯入） */}
-      <section className="rounded-2xl border p-4 space-y-3">
-        <h2 className="text-lg font-medium">還原（匯入歷史）</h2>
-
-        <div className="flex items-start gap-3">
-          <label className="px-3 py-2 rounded-xl border cursor-pointer select-none">
-            選擇檔案
-            <input
-              type="file"
-              accept="application/json,.json,.wkn.json"
-              className="hidden"
-              onChange={async (e: React.ChangeEvent<HTMLInputElement>) => {
-                const f = e.target.files?.[0];
-                if (f) {
-                  const txt = await f.text();
-                  await handleImportText(txt);
-                  e.target.value = "";
-                }
-              }}
-            />
-          </label>
-
-          <PasteBox onPaste={handleImportText} disabled={busy} />
-        </div>
-
-        {importPreview && (
-          <>
-            <div className="text-sm text-gray-800">
-              將匯入：sessions=<b>{importPreview.sessions}</b>、sets=<b>{importPreview.sets}</b>
-            </div>
-
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={overwrite}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setOverwrite(e.currentTarget.checked)
-                }
-              />
-              匯入時覆蓋本機同 id 資料（風險較高，預設關閉）
-            </label>
-
-            <div className="flex gap-3">
-              <button
-                onClick={onApplyImport}
-                disabled={busy || !importPreview}
-                className="px-4 py-2 rounded-xl bg-green-700 text-white disabled:opacity-50"
-              >
-                執行匯入
-              </button>
-              <button
-                onClick={() => {
-                  setImportPreview(null);
-                  setLastBundle(null);
-                  setMsg("");
-                  setOverwrite(false);
-                }}
-                disabled={busy || !importPreview}
-                className="px-4 py-2 rounded-xl border disabled:opacity-50"
-              >
-                取消
-              </button>
-            </div>
-          </>
-        )}
-      </section>
-
-      {msg && <p className="text-sm text-gray-700">{msg}</p>}
     </main>
-  );
-}
-
-function PasteBox({
-  onPaste,
-  disabled,
-}: {
-  onPaste: (text: string) => Promise<void>;
-  disabled?: boolean;
-}) {
-  const [value, setValue] = useState("");
-  const canImport = value.trim().length > 0 && !disabled;
-
-  return (
-    <div className="flex-1">
-      <textarea
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="或直接貼上 JSON 內容"
-        className="w-full h-24 p-2 border rounded-lg"
-        disabled={disabled}
-      />
-      <div className="mt-2">
-        <button
-          onClick={() => onPaste(value)}
-          disabled={!canImport}
-          className="px-3 py-2 rounded-xl border disabled:opacity-50"
-        >
-          預覽匯入
-        </button>
-      </div>
-    </div>
   );
 }

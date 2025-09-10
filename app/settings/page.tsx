@@ -1,5 +1,5 @@
 "use client";
-//app/settings/page.tsx
+
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -12,12 +12,17 @@ import {
 import type { Exercise, Unit } from "@/lib/models/types";
 import { emitFavoritesChanged } from "@/lib/bus";
 
-// 新增：匯出用
-import {
-  exportPresetsAsBlob,
-  tryShareFile,
-  triggerDownload,
-} from "@/lib/export/presets";
+// 匯出 presets
+import { exportPresetsAsBlob, tryShareFile, triggerDownload } from "@/lib/export/presets";
+
+/* =========================
+ *  可調整樣式集中管理
+ * ========================= */
+const INPUT_W = "w-24"; // 可改 w-20 / w-28 做微調
+const UNIT_BOX = "rounded-lg border px-3 py-2 whitespace-nowrap";
+const ROW = "flex flex-wrap items-center gap-3";
+const NUM_INPUT = `rounded-lg border px-2 py-2 ${INPUT_W}`;
+const CREATE_INPUT = `rounded-xl border px-3 py-3 text-base ${INPUT_W}`;
 
 const numOrUndef = (v: string) => {
   if (v.trim() === "") return undefined;
@@ -26,7 +31,7 @@ const numOrUndef = (v: string) => {
 };
 
 export default function SettingsPage() {
-  // 新增用欄位
+  // 新增區
   const [name, setName] = useState("");
   const [defaultWeight, setDefaultWeight] = useState<string>("");
   const [defaultReps, setDefaultReps] = useState<string>("");
@@ -38,7 +43,7 @@ export default function SettingsPage() {
   const [others, setOthers] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 匯出訊息（新增）
+  // 匯出
   const [exportMsg, setExportMsg] = useState<string>("");
   const [exportBusy, setExportBusy] = useState(false);
 
@@ -63,16 +68,15 @@ export default function SettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---------------- 匯出（新增） ----------------
+  // 匯出 presets
   const handleExportPresets = async () => {
     try {
       setExportBusy(true);
       setExportMsg("");
       const { blob, filename } = await exportPresetsAsBlob();
       const shared = await tryShareFile(blob, filename);
-      if (shared) {
-        setExportMsg("已透過分享送出。");
-      } else {
+      if (shared) setExportMsg("已透過分享送出。");
+      else {
         await triggerDownload(blob, filename);
         setExportMsg("已下載檔案（此裝置不支援分享）。");
       }
@@ -83,7 +87,7 @@ export default function SettingsPage() {
     }
   };
 
-  // ---------------- 新增 ----------------
+  // 建立
   const handleCreate = async () => {
     if (!canCreate) return;
     await createExercise({
@@ -98,34 +102,29 @@ export default function SettingsPage() {
     setDefaultReps("");
     setUnit("kg");
     setAsFavorite(true);
-
     await load();
     emitFavoritesChanged();
   };
 
-  // ---------------- 編輯（就地） ----------------
+  // 共用小動作
   const patchExercise = async (id: string, patch: Partial<Exercise>) => {
     await updateExercise({ id, ...patch });
     await load();
     emitFavoritesChanged();
   };
-
   const toggleUnit = async (ex: Exercise) => {
     const next: Unit = ex.defaultUnit === "kg" ? "lb" : "kg";
     await patchExercise(ex.id, { defaultUnit: next });
   };
-
   const toggleFavorite = async (ex: Exercise) => {
     await patchExercise(ex.id, { isFavorite: !ex.isFavorite });
   };
-
   const removeExercise = async (ex: Exercise) => {
     if (!confirm(`確定要刪除「${ex.name}」嗎？`)) return;
     await deleteExercise(ex.id);
     await load();
     emitFavoritesChanged();
   };
-
   const moveFavorite = async (index: number, dir: -1 | 1) => {
     const arr = [...favorites];
     const j = index + dir;
@@ -144,12 +143,9 @@ export default function SettingsPage() {
           <div className="px-4 sm:px-6 py-3 flex items-center justify-between border-b">
             <Link href="/" className="text-sm">← 返回</Link>
             <div className="flex items-center gap-2">
-              <Link href="/diagnostics" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">
-                偵錯
-              </Link>
-              <Link href="/sync" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">
-                雲端同步
-              </Link>
+              <Link href="/diagnostics" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">偵錯</Link>
+              {/* 變更：連到 /sync，文案改「資料搬運」 */}
+              <Link href="/sync" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">資料搬運</Link>
             </div>
           </div>
         </div>
@@ -166,19 +162,16 @@ export default function SettingsPage() {
         <div className="px-4 sm:px-6 py-3 flex items-center justify-between border-b">
           <Link href="/" className="text-sm">← 返回</Link>
           <div className="flex items-center gap-2">
-            <Link href="/diagnostics" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">
-              偵錯
-            </Link>
-            <Link href="/sync" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">
-              雲端同步
-            </Link>
+            <Link href="/diagnostics" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">偵錯</Link>
+            {/* 變更：連到 /sync，文案改「資料搬運」 */}
+            <Link href="/sync" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">資料搬運</Link>
           </div>
         </div>
       </div>
 
       <h1 className="text-2xl sm:text-3xl font-bold">設定</h1>
 
-      {/* 資料匯出（新增入口） */}
+      {/* 資料匯出 */}
       <section className="rounded-2xl border p-4 space-y-3">
         <h2 className="text-lg sm:text-xl font-semibold">資料匯出</h2>
         <p className="text-sm text-gray-600">
@@ -193,10 +186,7 @@ export default function SettingsPage() {
           >
             匯出 presets
           </button>
-          <Link
-            href="/settings/presets-transfer"
-            className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50"
-          >
+          <Link href="/settings/presets-transfer" className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50">
             進階：匯入／差異預覽
           </Link>
         </div>
@@ -224,39 +214,36 @@ export default function SettingsPage() {
               className={`w-16 h-9 rounded-full transition-all ${unit === "kg" ? "bg-blue-600" : "bg-gray-300"}`}
               aria-label="切換預設單位"
             >
-              <span
-                className={`block w-9 h-9 bg-white rounded-full shadow transform transition-all ${
-                  unit === "kg" ? "translate-x-7" : ""
-                }`}
-              />
+              <span className={`block w-9 h-9 bg-white rounded-full shadow transform transition-all ${unit === "kg" ? "translate-x-7" : ""}`} />
             </button>
             <span>lb</span>
           </div>
 
-          {/* 數值欄位 */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* 數值欄位（固定寬輸入 + 不換行單位） */}
+          <div className={ROW}>
             <input
               value={defaultWeight}
               onChange={(e) => setDefaultWeight(e.target.value)}
-              inputMode="numeric"
+              inputMode="decimal"
               placeholder="預設重量（可空）"
-              className="rounded-xl border px-3 py-3 text-base"
+              className={CREATE_INPUT}
             />
+            <span className={`${UNIT_BOX} rounded-xl`}>單位：{unit}</span>
+          </div>
+
+          <div className={ROW}>
             <input
               value={defaultReps}
               onChange={(e) => setDefaultReps(e.target.value)}
               inputMode="numeric"
               placeholder="預設次數（可空）"
-              className="rounded-xl border px-3 py-3 text-base"
+              className={CREATE_INPUT}
             />
+            <span className={`${UNIT_BOX} rounded-xl`}>單位：次</span>
           </div>
 
           <label className="mt-1 inline-flex items-center gap-2 select-none">
-            <input
-              type="checkbox"
-              checked={asFavorite}
-              onChange={(e) => setAsFavorite(e.target.checked)}
-            />
+            <input type="checkbox" checked={asFavorite} onChange={(e) => setAsFavorite(e.target.checked)} />
             設為常用（顯示在首頁）
           </label>
 
@@ -280,41 +267,60 @@ export default function SettingsPage() {
         ) : (
           <ul className="space-y-3">
             {favorites.map((ex, i) => (
-              <li key={ex.id} className="rounded-xl border p-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{ex.name}</div>
-                    <div className="text-sm text-gray-500">
-                      預設：{ex.defaultWeight ?? "-"} {ex.defaultUnit ?? "-"} × {ex.defaultReps ?? "-"}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
+              <li key={ex.id} className="rounded-xl border p-3 space-y-2">
+                {/* 第1排：名稱靠左、上/下移靠右（直向排列） */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="font-medium truncate">{ex.name}</div>
+                  <div className="flex flex-col gap-1">
                     <button className="rounded-lg border px-2 py-1" onClick={() => moveFavorite(i, -1)}>上移</button>
                     <button className="rounded-lg border px-2 py-1" onClick={() => moveFavorite(i, 1)}>下移</button>
-                    <button className="rounded-lg border px-2 py-1" onClick={() => toggleFavorite(ex)} title="取消常用">取消常用</button>
-                    <button className="rounded-lg border px-2 py-1" onClick={() => removeExercise(ex)}>刪除</button>
                   </div>
                 </div>
 
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                {/* 第2排：重量 + 單位 + （取消）常用 */}
+                <div className={ROW}>
                   <input
                     defaultValue={ex.defaultWeight ?? ""}
-                    inputMode="numeric"
-                    placeholder="預設重量"
-                    className="rounded-lg border px-2 py-1 w-28"
+                    inputMode="decimal"
+                    placeholder="重量"
+                    className={NUM_INPUT}
                     onBlur={(e) => patchExercise(ex.id, { defaultWeight: numOrUndef(e.target.value) })}
                   />
-                  <button className="rounded-lg border px-2 py-1" onClick={() => toggleUnit(ex)}>
+                  <button
+                    className={UNIT_BOX}
+                    onClick={() => toggleUnit(ex)}
+                    title="切換單位"
+                  >
                     單位：{ex.defaultUnit ?? "kg"}
                   </button>
-                  <input
-                    defaultValue={ex.defaultReps ?? ""}
-                    inputMode="numeric"
-                    placeholder="預設次數"
-                    className="rounded-lg border px-2 py-1 w-28"
-                    onBlur={(e) => patchExercise(ex.id, { defaultReps: numOrUndef(e.target.value) })}
-                  />
+
+                  <button
+                    className="rounded-lg border px-3 py-2"
+                    onClick={() => toggleFavorite(ex)}
+                  >
+                    {ex.isFavorite ? "取消常用" : "設為常用"}
+                  </button>
+                </div>
+
+                {/* 第3排：次數 + 單位：次 —— 刪除靠右 */}
+                <div className={`${ROW} justify-between`}>
+                  <div className="flex items-center gap-2">
+                    <input
+                      defaultValue={ex.defaultReps ?? ""}
+                      inputMode="numeric"
+                      placeholder="次數"
+                      className={NUM_INPUT}
+                      onBlur={(e) => patchExercise(ex.id, { defaultReps: numOrUndef(e.target.value) })}
+                    />
+                    <span className={UNIT_BOX}>單位：次</span>
+                  </div>
+
+                  <button
+                    className="rounded-lg border px-3 py-2 ml-auto"
+                    onClick={() => removeExercise(ex)}
+                  >
+                    刪除
+                  </button>
                 </div>
               </li>
             ))}
@@ -331,39 +337,40 @@ export default function SettingsPage() {
         ) : (
           <ul className="space-y-3">
             {others.map((ex) => (
-              <li key={ex.id} className="rounded-xl border p-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{ex.name}</div>
-                    <div className="text-sm text-gray-500">
-                      預設：{ex.defaultWeight ?? "-"} {ex.defaultUnit ?? "-"} × {ex.defaultReps ?? "-"}
-                    </div>
-                  </div>
+              <li key={ex.id} className="rounded-xl border p-3 space-y-2">
+                {/* 第1排：名稱 */}
+                <div className="font-medium truncate">{ex.name}</div>
 
-                  <div className="flex items-center gap-2">
-                    <button className="rounded-lg border px-2 py-1" onClick={() => toggleFavorite(ex)}>設為常用</button>
-                    <button className="rounded-lg border px-2 py-1" onClick={() => removeExercise(ex)}>刪除</button>
-                  </div>
-                </div>
-
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                {/* 第2排：重量 + 單位 + 設為常用 */}
+                <div className={ROW}>
                   <input
                     defaultValue={ex.defaultWeight ?? ""}
-                    inputMode="numeric"
-                    placeholder="預設重量"
-                    className="rounded-lg border px-2 py-1 w-28"
+                    inputMode="decimal"
+                    placeholder="重量"
+                    className={NUM_INPUT}
                     onBlur={(e) => patchExercise(ex.id, { defaultWeight: numOrUndef(e.target.value) })}
                   />
-                  <button className="rounded-lg border px-2 py-1" onClick={() => toggleUnit(ex)}>
+                  <button className={UNIT_BOX} onClick={() => toggleUnit(ex)}>
                     單位：{ex.defaultUnit ?? "kg"}
                   </button>
-                  <input
-                    defaultValue={ex.defaultReps ?? ""}
-                    inputMode="numeric"
-                    placeholder="預設次數"
-                    className="rounded-lg border px-2 py-1 w-28"
-                    onBlur={(e) => patchExercise(ex.id, { defaultReps: numOrUndef(e.target.value) })}
-                  />
+
+                  <button className="rounded-lg border px-3 py-2" onClick={() => toggleFavorite(ex)}>設為常用</button>
+                </div>
+
+                {/* 第3排：次數 + 單位：次 —— 刪除靠右 */}
+                <div className={`${ROW} justify-between`}>
+                  <div className="flex items-center gap-2">
+                    <input
+                      defaultValue={ex.defaultReps ?? ""}
+                      inputMode="numeric"
+                      placeholder="次數"
+                      className={NUM_INPUT}
+                      onBlur={(e) => patchExercise(ex.id, { defaultReps: numOrUndef(e.target.value) })}
+                    />
+                    <span className={UNIT_BOX}>單位：次</span>
+                  </div>
+
+                  <button className="rounded-lg border px-3 py-2 ml-auto" onClick={() => removeExercise(ex)}>刪除</button>
                 </div>
               </li>
             ))}

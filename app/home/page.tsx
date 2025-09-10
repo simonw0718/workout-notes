@@ -1,4 +1,5 @@
 "use client";
+//app/home/page.tsx
 
 import Link from "next/link";
 import { useEffect, useState } from "react";

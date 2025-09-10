@@ -1,4 +1,3 @@
-// app/layout.tsx
 "use client";
 
 import "./globals.css";
@@ -6,7 +5,6 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { offlineChanged } from "@/lib/bus";
 import RegisterSW from "@/components/RegisterSW";
-// ⛔ 已移除：import DebugFloating from "@/components/DebugFloating";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   const [offline, setOffline] = useState(false);
@@ -18,59 +16,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     };
     offlineChanged.addEventListener("change", handler);
     return () => offlineChanged.removeEventListener("change", handler);
-  }, []);
-
-  // 右下角 SW 小標（維持你現有版本）
-  useEffect(() => {
-    let box = document.getElementById("sw-badge") as HTMLDivElement | null;
-    if (!box) {
-      box = document.createElement("div");
-      box.id = "sw-badge";
-      box.style.position = "fixed";
-      box.style.right = "10px";
-      box.style.bottom = "10px";
-      box.style.zIndex = "2147483647";
-      box.style.padding = "6px 10px";
-      box.style.borderRadius = "9999px";
-      box.style.fontSize = "12px";
-      box.style.fontFamily =
-        "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
-      box.style.background = "rgba(0,0,0,0.7)";
-      box.style.color = "#fff";
-      box.style.border = "1px solid rgba(255,255,255,0.15)";
-      box.style.backdropFilter = "blur(4px)";
-      document.body.appendChild(box);
-    }
-
-    let stop = false;
-    async function updateBadge() {
-      try {
-        const versList = await caches.keys();
-        const cacheName =
-          versList.find((k) => k.startsWith("workout-cache-")) ??
-          (versList[0] ?? "none");
-
-        let swState = "none";
-        if ("serviceWorker" in navigator) {
-          if (navigator.serviceWorker.controller) swState = "controlled";
-          else {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            if (regs.length > 0) swState = "registered";
-          }
-        }
-
-        if (!stop && box) box.textContent = `SW: ${swState} · ${cacheName}`;
-      } catch {
-        if (!stop && box) box.textContent = `SW: -`;
-      }
-    }
-
-    updateBadge();
-    const t = setInterval(updateBadge, 5000);
-    return () => {
-      stop = true;
-      clearInterval(t);
-    };
   }, []);
 
   return (
@@ -94,7 +39,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </div>
         )}
         {children}
-        {/* ⛔ 已移除：<DebugFloating /> */}
+        {/* 只保留註冊 SW；已移除任何浮動徽章插入程式 */}
         <RegisterSW />
       </body>
     </html>
