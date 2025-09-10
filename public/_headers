@@ -1,11 +1,18 @@
 /sw.js
   Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
 
 /manifest.webmanifest
   Content-Type: application/manifest+json; charset=utf-8
-  Cache-Control: max-age=3600
+  Cache-Control: no-store
 
 /*.html
+  Cache-Control: no-store
+
+/
+  Cache-Control: no-store
+
+/start.html
   Cache-Control: no-store
 
 /precache-assets.json
