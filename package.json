@@ -8,11 +8,11 @@
     "dev:https": "node server/dev-https.js",
     "dev:clean": "rm -rf .next && next dev -p 3000",
     "stop": "kill -9 $(lsof -t -i:3000) $(lsof -t -i:3443) || true",
-    "build": "next build",                        
-    "build:export": "rm -rf .next out && next build",  
-    "preview:export": "node server/static-https.mjs",  
+    "build": "next build",
+    "build:export": "rm -rf .next out && next build",
+    "preview:export": "node server/static-https.mjs",
     "postbuild": "node scripts/gen-precache.mjs",
-    "start": "next start -p 3000",               
+    "start": "next start -p 3000",
     "lint": "next lint",
     "fmt": "prettier --write .",
     "format:check": "prettier --check .",
@@ -25,10 +25,7 @@
     "next": "15.5.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "recharts": "^3.1.2",
-    "serve-static": "^1.15.0",
-    "finalhandler": "^1.2.0",
-    "mime": "^3.0.0"
+    "recharts": "^3.1.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
