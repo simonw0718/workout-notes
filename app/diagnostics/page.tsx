@@ -8,6 +8,11 @@ import { getDB, startSession, addSet, listSetsBySessionAndExercise } from "@/lib
 type Coverage = { url: string; inCache: boolean };
 
 export default function Diagnostics() {
+  // UI states
+  const [online, setOnline] = useState<boolean | null>(null);
+  const [swControlled, setSwControlled] = useState<boolean | null>(null);
+
+  // Cache states
   const [cacheNames, setCacheNames] = useState<string[]>([]);
   const [selectedCache, setSelectedCache] = useState<string>("");
   const [cacheEntries, setCacheEntries] = useState<string[]>([]);
@@ -16,14 +21,18 @@ export default function Diagnostics() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
+  // IDB smoke test
   const [idbMsg, setIdbMsg] = useState<string>("");
   const [idbOk, setIdbOk] = useState<boolean | null>(null);
 
-  const [online, setOnline] = useState<boolean | null>(null);
-  const [swControlled, setSwControlled] = useState<boolean | null>(null);
-
+  // utils
   const short = (u: string) => {
-    try { return new URL(u, typeof window !== "undefined" ? window.location.origin : "http://x").pathname || "/"; } catch { return u; }
+    try {
+      const base = typeof window !== "undefined" ? window.location.origin : "http://x";
+      return new URL(u, base).pathname || "/";
+    } catch {
+      return u;
+    }
   };
 
   const autoPick = useMemo(() => {
@@ -32,11 +41,35 @@ export default function Diagnostics() {
     return cacheNames[0] ?? "";
   }, [cacheNames]);
 
+  // bootstrap on client
   useEffect(() => {
     if (typeof window === "undefined") return;
-    (async () => setCacheNames(await caches.keys()))();
+
     setOnline(navigator.onLine);
     setSwControlled(!!navigator.serviceWorker?.controller);
+
+    (async () => {
+      try {
+        const ks = await caches.keys();
+        setCacheNames(ks);
+      } catch {
+        setCacheNames([]);
+      }
+    })();
+
+    const onOnline = () => setOnline(true);
+    const onOffline = () => setOnline(false);
+    const onCtrlChange = () => setSwControlled(!!navigator.serviceWorker?.controller);
+
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    navigator.serviceWorker?.addEventListener?.("controllerchange", onCtrlChange);
+
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      navigator.serviceWorker?.removeEventListener?.("controllerchange", onCtrlChange as any);
+    };
   }, []);
 
   useEffect(() => {
@@ -49,29 +82,49 @@ export default function Diagnostics() {
     try {
       const c = await caches.open(selectedCache);
       const reqs = await c.keys();
-      setCacheEntries(reqs.map((r) => { try { return new URL(r.url).pathname || "/"; } catch { return r.url; } }));
+      setCacheEntries(
+        reqs.map((r) => {
+          try {
+            return new URL(r.url).pathname || "/";
+          } catch {
+            return r.url;
+          }
+        }),
+      );
       setMsg(`已載入 ${selectedCache} 內的 ${reqs.length} 個條目`);
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function loadPrecacheList() {
     if (typeof window === "undefined") return;
-    setBusy(true); setMsg(null);
+    setBusy(true);
+    setMsg(null);
     try {
       const res = await fetch("/precache-assets.json", { cache: "no-cache" });
-      if (!res.ok) { setMsg(`[錯誤] 讀取 precache-assets.json 失敗：${res.status}`); setPrecacheList([]); return; }
+      if (!res.ok) {
+        setMsg(`[錯誤] 讀取 precache-assets.json 失敗：${res.status}`);
+        setPrecacheList([]);
+        return;
+      }
       const json = await res.json();
-      const arr: string[] = Array.isArray(json) ? json : (Array.isArray(json.assets) ? json.assets : []);
+      const arr: string[] = Array.isArray(json) ? json : Array.isArray(json.assets) ? json.assets : [];
       const origin = window.location.origin;
       setPrecacheList(arr.map((p) => (p.startsWith("http") ? p : origin + p)));
       setMsg(`已讀取 precache 清單，共 ${arr.length} 筆`);
-    } catch { setMsg("[錯誤] 讀取 precache-assets.json 發生例外"); setPrecacheList([]); }
-    finally { setBusy(false); }
+    } catch {
+      setMsg("[錯誤] 讀取 precache-assets.json 發生例外");
+      setPrecacheList([]);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function comparePrecacheCoverage() {
     if (!selectedCache || typeof window === "undefined") return;
-    setBusy(true); setMsg(null);
+    setBusy(true);
+    setMsg(null);
     try {
       if (!cacheEntries.length) await refreshCacheEntries();
       if (!precacheList.length) await loadPrecacheList();
@@ -85,7 +138,9 @@ export default function Diagnostics() {
       setCoverage(results);
       const hitCount = results.filter((r) => r.inCache).length;
       setMsg(`對比完成：${hitCount}/${results.length} 已在 cache`);
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function clearAll() {
@@ -99,13 +154,21 @@ export default function Diagnostics() {
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map((r) => r.unregister()));
       }
-      setCacheNames([]); setSelectedCache(""); setCacheEntries([]);
-      setPrecacheList([]); setCoverage([]); setMsg("已清除所有 SW 與 Cache，請關掉 App 重開。");
-    } finally { setBusy(false); }
+      setCacheNames([]);
+      setSelectedCache("");
+      setCacheEntries([]);
+      setPrecacheList([]);
+      setCoverage([]);
+      setMsg("已清除所有 SW 與 Cache，請關掉 App 重開。");
+      setSwControlled(false);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function idbSmoke() {
-    setIdbMsg("測試中…"); setIdbOk(null);
+    setIdbMsg("測試中…");
+    setIdbOk(null);
     try {
       await getDB();
       const s = await startSession();
@@ -114,7 +177,7 @@ export default function Diagnostics() {
       const list = await listSetsBySessionAndExercise(s.id, exerciseId);
       if (Array.isArray(list) && list.length > 0) {
         setIdbOk(true);
-        setIdbMsg(`OK：可寫入/讀取（sessionId=${s.id.slice(0,8)}…, exerciseId=${exerciseId}，共 ${list.length} 筆）`);
+        setIdbMsg(`OK：可寫入/讀取（sessionId=${s.id.slice(0, 8)}…, exerciseId=${exerciseId}，共 ${list.length} 筆）`);
       } else {
         setIdbOk(false);
         setIdbMsg("讀回 0 筆，疑似寫入失敗（請截 Console）");
@@ -127,22 +190,28 @@ export default function Diagnostics() {
 
   return (
     <main className="p-4 space-y-6 max-w-screen-md mx-auto">
+      {/* 頂部返回列 */}
       <div className="sticky top-0 -mx-4 md:-mx-0 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 z-10">
         <div className="px-4 py-3 flex items-center justify-between border-b">
           <Link href="/" className="text-sm">← 回首頁</Link>
-          <span className="text-xs text-gray-500">online: {online === null ? "?" : String(online)}</span>
+          <span className="text-xs text-gray-500">
+            online: {online === null ? "—" : String(online)}
+          </span>
         </div>
       </div>
 
       <h1 className="text-2xl font-semibold">Diagnostics</h1>
 
+      {/* SW 狀態 */}
       <section className="rounded-xl border p-3 text-sm">
         <div className="mb-2">
           <b>SW 狀態：</b>
           <span className={swControlled ? "text-green-600" : "text-red-600"}>
             {swControlled ? "controlled" : "not controlled"}
           </span>
-          <span className="ml-2 text-gray-500">· online: {online === null ? "?" : String(online)}</span>
+          <span className="ml-2 text-gray-500">
+            · online: {online === null ? "—" : String(online)}
+          </span>
         </div>
         <button
           className="rounded border px-3 py-1"
@@ -150,14 +219,161 @@ export default function Diagnostics() {
             if (typeof window === "undefined") return;
             const regs = await navigator.serviceWorker.getRegistrations();
             alert(`registrations: ${regs.length}`);
+            setSwControlled(!!navigator.serviceWorker?.controller);
           }}
         >
           重新整理
         </button>
       </section>
 
-      {/* 下面邏輯維持不變 */}
-      {/* ... 保留你的 Cache / Coverage / IndexedDB 測試區塊 ... */}
+      {/* Cache 控制列 */}
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          className="border rounded px-2 py-2"
+          value={selectedCache}
+          onChange={(e) => setSelectedCache(e.target.value)}
+        >
+          <option value="">（選擇 Cache）</option>
+          {cacheNames.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+
+        <button
+          onClick={async () => {
+            if (typeof window === "undefined") return;
+            const ks = await caches.keys();
+            setCacheNames(ks);
+            setMsg(`已刷新 cache 清單，共 ${ks.length} 個`);
+          }}
+          className="px-3 py-2 rounded border"
+        >
+          刷新 Cache 清單
+        </button>
+
+        <button
+          onClick={refreshCacheEntries}
+          className="px-3 py-2 rounded border"
+          disabled={!selectedCache || busy}
+        >
+          列出目前 Cache 內容
+        </button>
+
+        <button
+          onClick={loadPrecacheList}
+          className="px-3 py-2 rounded border bg-blue-600 text-white"
+          disabled={busy}
+        >
+          列出 precache 條目
+        </button>
+
+        <button
+          onClick={comparePrecacheCoverage}
+          className="px-3 py-2 rounded border bg-amber-500 text-white"
+          disabled={!selectedCache || busy}
+        >
+          對比：precache 是否都在 Cache
+        </button>
+
+        <button
+          onClick={clearAll}
+          className="px-3 py-2 rounded border bg-red-600 text-white"
+          disabled={busy}
+        >
+          清除 SW 與所有 Cache
+        </button>
+      </div>
+
+      {/* 一鍵導頁／硬刷新 */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button onClick={() => typeof window !== "undefined" && window.location.assign("/diagnostics")} className="px-3 py-2 rounded border">
+          開 /diagnostics
+        </button>
+        <button onClick={() => typeof window !== "undefined" && window.location.assign("/start.html")} className="px-3 py-2 rounded border">
+          回殼頁（start.html）
+        </button>
+        <button onClick={() => typeof window !== "undefined" && window.location.assign("/exercise")} className="px-3 py-2 rounded border">
+          開 /exercise
+        </button>
+        <button onClick={() => typeof window !== "undefined" && window.location.assign("/history")} className="px-3 py-2 rounded border">
+          開 /history
+        </button>
+        <button onClick={() => typeof window !== "undefined" && window.location.reload()} className="px-3 py-2 rounded border bg-gray-900 text-white">
+          硬重新整理
+        </button>
+      </div>
+
+      {msg && (
+        <div className="p-3 rounded bg-gray-100 text-sm">
+          {busy ? "處理中… " : null}
+          {msg}
+        </div>
+      )}
+
+      {/* 目前 Cache 條目 */}
+      <section>
+        <h2 className="text-lg font-medium mb-2">目前 Cache（{selectedCache || "未選擇"}）</h2>
+        {cacheEntries.length === 0 ? (
+          <p className="text-sm text-gray-500">（尚無資料）</p>
+        ) : (
+          <ul className="list-disc pl-6 text-sm break-all">
+            {cacheEntries.map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Precache 清單 */}
+      <section>
+        <h2 className="text-lg font-medium mb-2">Precache 清單</h2>
+        {precacheList.length === 0 ? (
+          <p className="text-sm text-gray-500">（尚無資料）</p>
+        ) : (
+          <ul className="list-disc pl-6 text-sm break-all">
+            {precacheList.map((u, i) => (
+              <li key={i}>{short(u)}</li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Coverage 對比 */}
+      <section>
+        <h2 className="text-lg font-medium mb-2">Coverage 對比（precache → cache）</h2>
+        {coverage.length === 0 ? (
+          <p className="text-sm text-gray-500">（尚無資料）</p>
+        ) : (
+          <>
+            <div className="text-sm mb-2">
+              已在 Cache：{coverage.filter((c) => c.inCache).length} / {coverage.length}
+            </div>
+            <ul className="list-disc pl-6 text-sm break-all">
+              {coverage.map((c, i) => (
+                <li key={i} className={c.inCache ? "text-green-700" : "text-red-700"}>
+                  {short(c.url)} {c.inCache ? "✓" : "✗"}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+
+      {/* IndexedDB 健檢 */}
+      <section className="rounded-xl border p-4 space-y-3">
+        <h2 className="text-lg font-semibold">IndexedDB 健檢</h2>
+        <div className="text-sm text-gray-600">測：開庫 → 造一筆 dummy set → 讀回來。</div>
+        <div className="flex gap-2 items-center">
+          <button onClick={idbSmoke} className="px-4 py-2 rounded-xl border hover:bg-gray-50">
+            執行健檢
+          </button>
+          <div className={`text-sm ${idbOk == null ? "" : idbOk ? "text-green-700" : "text-red-700"}`}>
+            {idbMsg || "（尚未測試）"}
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

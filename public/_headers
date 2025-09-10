@@ -1,14 +1,21 @@
-/*
-  Cache-Control: public, max-age=0, must-revalidate
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
 
-/_next/static/*
-  Cache-Control: public, max-age=31536000, immutable
+/manifest.webmanifest
+  Content-Type: application/manifest+json; charset=utf-8
+  Cache-Control: max-age=3600
 
-/*.js
-  Cache-Control: public, max-age=31536000, immutable
+/*.html
+  Cache-Control: no-store
 
-/*.css
+/precache-assets.json
+  Cache-Control: no-cache
+
+/_next/*
   Cache-Control: public, max-age=31536000, immutable
 
 /icons/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/apple-touch-icon.png
   Cache-Control: public, max-age=31536000, immutable
