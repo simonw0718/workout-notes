@@ -1,3 +1,4 @@
+//app/summary/page.tsx
 "use client";
 export const dynamic = "force-static";
 export const fetchCache = "force-cache";

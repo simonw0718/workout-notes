@@ -1,3 +1,4 @@
+//lib/db/index.ts
 import { openDB, DBSchema, IDBPDatabase } from "idb";
 import type { Exercise, Session, SetRecord, Meta, Unit } from "@/lib/models/types";
 import { safeUUID } from "@/lib/utils/uuid";

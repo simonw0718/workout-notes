@@ -1,4 +1,5 @@
-import { getDB } from "@/lib/db";
+//lib/export/text.ts
+import { getDB, getSessionById } from "@/lib/db";
 import { getMeta } from "@/lib/db/meta";
 import { listAllExercises, listSetsBySession } from "@/lib/db/history";
 import type { Unit, Exercise } from "@/lib/models/types";
@@ -11,7 +12,6 @@ const toKg = (w: number, unit?: Unit) =>
 export async function exportSessionText(sessionId: string): Promise<string> {
   await getDB();
 
-  // Meta 目前沒有定義 unit；若存在就用，否則預設 lb
   type MaybeUnit = { unit?: Unit };
   const meta = (await getMeta()) as MaybeUnit;
   const defaultUnit = unitOrDefault(meta.unit);
@@ -19,11 +19,21 @@ export async function exportSessionText(sessionId: string): Promise<string> {
   const sets = await listSetsBySession(sessionId);
   const exercises = await listAllExercises();
 
+  // 先決定日期/時間來源
+  const session = await getSessionById(sessionId);
+  let ts: number | null = session?.startedAt ?? null;
+  if (!ts && sets.length > 0) {
+    ts = Math.min(...sets.map((s) => s.createdAt));
+  }
+  const dateStr = formatDate(ts ? new Date(ts) : new Date());
+  const startStr = session?.startedAt ? formatTime(new Date(session.startedAt)) : "-";
+  const endStr = session?.endedAt ? formatTime(new Date(session.endedAt)) : "-";
+
   const exById = new Map<string, Exercise>();
   exercises.forEach((e) => exById.set(e.id, e));
 
   if (sets.length === 0) {
-    return `[日期] ${formatDate()}\n[總結] 0 動作；共 0 組；總量 0 kg`;
+    return `[日期] ${dateStr}\n[開始] ${startStr}\n[結束] ${endStr}\n[總結] 0 動作；共 0 組；總量 0 kg`;
   }
 
   type Group = { name: string; rows: string[]; subtotalKg: number };
@@ -32,7 +42,7 @@ export async function exportSessionText(sessionId: string): Promise<string> {
   for (const s of sets) {
     const ex = exById.get(s.exerciseId);
     const exName = ex?.name ?? "Unknown";
-    const unit = defaultUnit; // 全程用偏好單位（或預設）
+    const unit = defaultUnit;
 
     if (!byEx.has(s.exerciseId)) {
       byEx.set(s.exerciseId, { name: exName, rows: [], subtotalKg: 0 });
@@ -51,7 +61,9 @@ export async function exportSessionText(sessionId: string): Promise<string> {
 
   const totalKg = Array.from(byEx.values()).reduce((a, b) => a + b.subtotalKg, 0);
 
-  return `[日期] ${formatDate()}
+  return `[日期] ${dateStr}
+[開始] ${startStr}
+[結束] ${endStr}
 
 ${blocks.join("\n\n")}
 
@@ -63,4 +75,10 @@ function formatDate(d = new Date()) {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatTime(d: Date) {
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mi}`;
 }
