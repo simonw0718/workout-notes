@@ -1,5 +1,5 @@
-# server/schemas.py
-from typing import List, Optional, Dict, Any
+# File: server/schemas.py
+from typing import List, Optional, Dict, Any, Literal
 from pydantic import BaseModel, Field
 try:
     # pydantic v2
@@ -7,6 +7,11 @@ try:
     _HAS_V2 = True
 except Exception:  # pydantic v1 fallback
     _HAS_V2 = False
+
+# ---- 新增：型別別名（僅做類型提示；實際仍以字串傳輸） ----
+UnitStr = Literal["kg", "lb", "sec", "min"]
+CategoryStr = Literal["upper", "lower", "core", "other"]
+SessionStatusStr = Literal["in_progress", "ended"]
 
 
 # ---------- Auth ----------
@@ -46,6 +51,9 @@ class Session(BaseModel):
     updated_at: int = Field(alias="updatedAt")
     device_id: str = Field(alias="deviceId")
 
+    # 新增：狀態（可接續）
+    status: SessionStatusStr = Field(default="in_progress")
+
     if _HAS_V2:
         model_config = ConfigDict(populate_by_name=True, ser_json_by_alias=True)
     else:
@@ -58,12 +66,15 @@ class Exercise(BaseModel):
     name: str
     default_weight: Optional[float] = Field(default=None, alias="defaultWeight")
     default_reps: Optional[int] = Field(default=None, alias="defaultReps")
-    default_unit: Optional[str] = Field(default=None, alias="defaultUnit")
+    default_unit: Optional[UnitStr] = Field(default=None, alias="defaultUnit")
     is_favorite: Optional[bool] = Field(default=None, alias="isFavorite")
     sort_order: Optional[int] = Field(default=None, alias="sortOrder")
     deleted_at: Optional[int] = Field(default=None, alias="deletedAt")
     updated_at: int = Field(alias="updatedAt")
     device_id: str = Field(alias="deviceId")
+
+    # 新增：分類（系統屬性）
+    category: CategoryStr = Field(default="other")
 
     if _HAS_V2:
         model_config = ConfigDict(populate_by_name=True, ser_json_by_alias=True)
@@ -78,7 +89,7 @@ class SetRecord(BaseModel):
     exercise_id: str = Field(alias="exerciseId")
     weight: Optional[float] = None
     reps: Optional[int] = None
-    unit: Optional[str] = None
+    unit: Optional[UnitStr] = None
     rpe: Optional[float] = None
     created_at: int = Field(alias="createdAt")
     deleted_at: Optional[int] = Field(default=None, alias="deletedAt")

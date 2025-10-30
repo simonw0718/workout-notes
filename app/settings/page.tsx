@@ -1,169 +1,165 @@
+// app/settings/page.tsx
 "use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  listAllExercises,
   createExercise,
-  updateExercise,
+  listAllExercises,
   deleteExercise,
-  reorderFavorites,
 } from "@/lib/db";
-import type { Exercise, Unit } from "@/lib/models/types";
-import { emitFavoritesChanged } from "@/lib/bus";
+import type { Exercise, Unit, Category } from "@/lib/models/types";
+import ExerciseEditorDrawer from "@/components/ExerciseEditorDrawer";
 
-// 匯出 presets
-import { exportPresetsAsBlob, tryShareFile, triggerDownload } from "@/lib/export/presets";
+/** 左側器材（不會出現在最終名稱） */
+const EQUIP_PREFIX = ["啞鈴", "槓鈴", "器械", "繩索", "徒手", "其他"] as const;
+/** 右側常見動作 */
+const MOVE_SUFFIX = [
+  "胸推", "肩推", "划船", "深蹲", "腿推", "硬舉",
+  "側平舉", "前平舉", "飛鳥", "二頭彎舉", "三頭下壓",
+  "卷腹", "抬腿",
+] as const;
 
-/* =========================
- *  可調整樣式集中管理
- * ========================= */
-const INPUT_W = "w-24"; // 可改 w-20 / w-28 做微調
-const UNIT_BOX = "rounded-lg border px-3 py-2 whitespace-nowrap";
-const ROW = "flex flex-wrap items-center gap-3";
-const NUM_INPUT = `rounded-lg border px-2 py-2 ${INPUT_W}`;
-const CREATE_INPUT = `rounded-xl border px-3 py-3 text-base ${INPUT_W}`;
+const CATEGORIES: { key: Category; label: string }[] = [
+  { key: "upper", label: "上肢" },
+  { key: "lower", label: "下肢" },
+  { key: "core",  label: "核心" },
+  { key: "other", label: "其他" },
+];
+
+const UNITS: Unit[] = ["kg", "lb", "sec", "min"];
+const nextUnit = (u: Unit) => UNITS[(UNITS.indexOf(u) + 1) % UNITS.length];
 
 const numOrUndef = (v: string) => {
-  if (v.trim() === "") return undefined;
-  const n = Number(v);
+  const t = v.trim();
+  if (t === "") return undefined;
+  const n = Number(t);
   return Number.isFinite(n) ? n : undefined;
 };
 
 export default function SettingsPage() {
-  // 新增區
-  const [name, setName] = useState("");
-  const [defaultWeight, setDefaultWeight] = useState<string>("");
-  const [defaultReps, setDefaultReps] = useState<string>("");
+  // 名稱（雙選單 + 自訂）
+  const [equip, setEquip] = useState<(typeof EQUIP_PREFIX)[number]>("啞鈴");
+  const [move, setMove] = useState<(typeof MOVE_SUFFIX)[number]>("胸推");
+  const [custom, setCustom] = useState<string>("");
+
+  // 其他欄位
+  const [category, setCategory] = useState<Category>("other");
   const [unit, setUnit] = useState<Unit>("kg");
-  const [asFavorite, setAsFavorite] = useState(true);
+  const [defaultWeight, setDefaultWeight] = useState("");
+  const [defaultReps, setDefaultReps] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
 
-  // 清單
-  const [favorites, setFavorites] = useState<Exercise[]>([]);
-  const [others, setOthers] = useState<Exercise[]>([]);
-  const [loading, setLoading] = useState(true);
+  // 已儲存列表 + 檢索/排序/選取
+  const [all, setAll] = useState<Exercise[]>([]);
+  const [q, setQ] = useState("");
+  const [sortKey, setSortKey] = useState<"updated" | "name">("updated");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [removing, setRemoving] = useState<Set<string>>(new Set()); // 淡出動畫用
 
-  // 匯出
-  const [exportMsg, setExportMsg] = useState<string>("");
-  const [exportBusy, setExportBusy] = useState(false);
+  // 抽屜編輯
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState<Exercise | null>(null);
 
-  const canCreate = useMemo(() => name.trim().length > 0, [name]);
-
+  // 載入
   const load = async () => {
-    setLoading(true);
-    const all = await listAllExercises();
-    const favs = all
-      .filter((x) => x.isFavorite)
-      .sort((a, b) => (a.sortOrder ?? 9e9) - (b.sortOrder ?? 9e9));
-    const nonFavs = all
-      .filter((x) => !x.isFavorite)
-      .sort((a, b) => a.name.localeCompare(b.name));
-    setFavorites(favs);
-    setOthers(nonFavs);
-    setLoading(false);
+    const exs = await listAllExercises();
+    setAll(exs);
   };
+  useEffect(() => { load(); }, []);
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // 最終名稱（自訂 > 組合）
+  const finalName = useMemo(() => {
+    const c = custom.trim();
+    return c || `${equip}${move}`;
+  }, [custom, equip, move]);
+  const canCreate = finalName.trim().length > 0;
 
-  // 匯出 presets
-  const handleExportPresets = async () => {
+  // 檢索/排序
+  const filtered = useMemo(() => {
+    const kw = q.trim();
+    let arr = all.filter(e => !e.deletedAt);
+    if (kw) arr = arr.filter(e => e.name.includes(kw));
+    if (sortKey === "name") arr = arr.slice().sort((a, b) => a.name.localeCompare(b.name));
+    else arr = arr.slice().sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+    return arr;
+  }, [all, q, sortKey]);
+
+  // 送出新增
+  async function onCreate() {
+    if (!canCreate || saving) return;
     try {
-      setExportBusy(true);
-      setExportMsg("");
-      const { blob, filename } = await exportPresetsAsBlob();
-      const shared = await tryShareFile(blob, filename);
-      if (shared) setExportMsg("已透過分享送出。");
-      else {
-        await triggerDownload(blob, filename);
-        setExportMsg("已下載檔案（此裝置不支援分享）。");
-      }
+      setSaving(true);
+      setMsg("");
+      await createExercise({
+        name: finalName,
+        defaultWeight: numOrUndef(defaultWeight),
+        defaultReps: numOrUndef(defaultReps),
+        defaultUnit: unit,
+        isFavorite: false,
+        category,
+      });
+      setMsg(`已新增：${finalName}`);
+      // reset
+      setCustom("");
+      setEquip("啞鈴");
+      setMove("胸推");
+      setCategory("other");
+      setUnit("kg");
+      setDefaultWeight("");
+      setDefaultReps("");
+      await load();
     } catch (e: any) {
-      setExportMsg(`匯出失敗：${e?.message ?? e}`);
+      setMsg(`新增失敗：${e?.message ?? e}`);
     } finally {
-      setExportBusy(false);
+      setSaving(false);
     }
-  };
-
-  // 建立
-  const handleCreate = async () => {
-    if (!canCreate) return;
-    await createExercise({
-      name: name.trim(),
-      defaultWeight: numOrUndef(defaultWeight),
-      defaultReps: numOrUndef(defaultReps),
-      defaultUnit: unit,
-      isFavorite: asFavorite,
-    });
-    setName("");
-    setDefaultWeight("");
-    setDefaultReps("");
-    setUnit("kg");
-    setAsFavorite(true);
-    await load();
-    emitFavoritesChanged();
-  };
-
-  // 共用小動作
-  const patchExercise = async (id: string, patch: Partial<Exercise>) => {
-    await updateExercise({ id, ...patch });
-    await load();
-    emitFavoritesChanged();
-  };
-  const toggleUnit = async (ex: Exercise) => {
-    const next: Unit = ex.defaultUnit === "kg" ? "lb" : "kg";
-    await patchExercise(ex.id, { defaultUnit: next });
-  };
-  const toggleFavorite = async (ex: Exercise) => {
-    await patchExercise(ex.id, { isFavorite: !ex.isFavorite });
-  };
-  const removeExercise = async (ex: Exercise) => {
-    if (!confirm(`確定要刪除「${ex.name}」嗎？`)) return;
-    await deleteExercise(ex.id);
-    await load();
-    emitFavoritesChanged();
-  };
-  const moveFavorite = async (index: number, dir: -1 | 1) => {
-    const arr = [...favorites];
-    const j = index + dir;
-    if (j < 0 || j >= arr.length) return;
-    [arr[index], arr[j]] = [arr[j], arr[index]];
-    setFavorites(arr);
-    await reorderFavorites(arr.map((x) => x.id));
-    await load();
-    emitFavoritesChanged();
-  };
-
-  if (loading) {
-    return (
-      <main className="max-w-screen-sm mx-auto p-4 sm:p-6">
-        <div className="sticky top-0 -mx-4 sm:-mx-6 mb-4 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-          <div className="px-4 sm:px-6 py-3 flex items-center justify-between border-b">
-            <Link href="/" className="text-sm">← 返回</Link>
-            <div className="flex items-center gap-2">
-              <Link href="/diagnostics" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">偵錯</Link>
-              {/* 變更：連到 /sync，文案改「資料搬運」 */}
-              <Link href="/sync" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">資料搬運</Link>
-            </div>
-          </div>
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">設定</h1>
-        <p>載入中…</p>
-      </main>
-    );
   }
+
+  // 單筆刪除（先淡出，再刪除）
+  async function removeOne(id: string) {
+    setRemoving(prev => new Set(prev).add(id));
+    await new Promise(r => setTimeout(r, 220)); // 對應 transition duration
+    await deleteExercise(id);
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    await load();
+    setRemoving(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  // 批次刪除（先把所有 target 淡出，再刪）
+  async function removeBatch(ids: string[]) {
+    const withFade = new Set(removing);
+    ids.forEach(id => withFade.add(id));
+    setRemoving(withFade);
+    await new Promise(r => setTimeout(r, 220));
+    await Promise.all(ids.map(id => deleteExercise(id)));
+    setSelected(new Set());
+    await load();
+    setRemoving(new Set());
+  }
+
+  const weightLabel = unit === "sec" || unit === "min" ? "預設時間" : "預設重量";
+  const weightUnitLabel = unit === "sec" ? "sec" : unit === "min" ? "min" : unit;
 
   return (
     <main className="max-w-screen-sm mx-auto p-4 sm:p-6 space-y-6">
-      {/* Sticky header */}
+      {/* Sticky header：返回首頁、其他入口 */}
       <div className="sticky top-0 -mx-4 sm:-mx-6 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 z-10">
         <div className="px-4 sm:px-6 py-3 flex items-center justify-between border-b">
-          <Link href="/" className="text-sm">← 返回</Link>
+          <Link href="/" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">
+            回首頁
+          </Link>
           <div className="flex items-center gap-2">
             <Link href="/diagnostics" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">偵錯</Link>
-            {/* 變更：連到 /sync，文案改「資料搬運」 */}
             <Link href="/sync" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">資料搬運</Link>
           </div>
         </div>
@@ -171,212 +167,237 @@ export default function SettingsPage() {
 
       <h1 className="text-2xl sm:text-3xl font-bold">設定</h1>
 
-      {/* 資料匯出 */}
-      <section className="rounded-2xl border p-4 space-y-3">
-        <h2 className="text-lg sm:text-xl font-semibold">資料匯出</h2>
-        <p className="text-sm text-gray-600">
-          匯出「動作預設（presets）」為 <code>.wkn.json</code> 檔，可用 AirDrop/訊息分享或直接下載。
-        </p>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleExportPresets}
-            disabled={exportBusy}
-            className="h-11 rounded-xl bg-black text-white px-4 disabled:opacity-40"
-          >
-            匯出 presets
-          </button>
-          <Link href="/settings/presets-transfer" className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50">
-            進階：匯入／差異預覽
-          </Link>
-        </div>
-        {exportMsg && <p className="text-sm text-gray-700">{exportMsg}</p>}
-      </section>
-
-      {/* 新增 */}
-      <section className="rounded-2xl border p-4 space-y-4">
+      {/* 新增動作 */}
+      <section className="rounded-2xl border p-4 space-y-5">
         <h2 className="text-lg sm:text-xl font-semibold">新增動作</h2>
 
-        <div className="grid gap-3">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="動作名稱（必填）"
-            className="rounded-xl border px-3 py-3 text-base"
-          />
+        {/* 名稱：雙選單 + 自訂名稱 */}
+        <div className="space-y-3">
+          <label className="text-sm text-gray-500">目前動作名稱（可留白用上方組合）</label>
 
-          {/* 單位切換 */}
-          <div className="flex items-center gap-3">
-            <span>kg</span>
-            <button
-              type="button"
-              onClick={() => setUnit(unit === "kg" ? "lb" : "kg")}
-              className={`w-16 h-9 rounded-full transition-all ${unit === "kg" ? "bg-blue-600" : "bg-gray-300"}`}
-              aria-label="切換預設單位"
+          {/* 兩個下拉：器材 × 動作 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <select
+              className="w-full border rounded-xl p-3 bg-transparent"
+              value={equip}
+              onChange={(e) => setEquip(e.target.value as any)}
+              aria-label="器材"
             >
-              <span className={`block w-9 h-9 bg-white rounded-full shadow transform transition-all ${unit === "kg" ? "translate-x-7" : ""}`} />
-            </button>
-            <span>lb</span>
+              {EQUIP_PREFIX.map(x => <option key={x} value={x}>{x}</option>)}
+            </select>
+
+            <select
+              className="w-full border rounded-xl p-3 bg-transparent"
+              value={move}
+              onChange={(e) => setMove(e.target.value as any)}
+              aria-label="動作"
+            >
+              {MOVE_SUFFIX.map(x => <option key={x} value={x}>{x}</option>)}
+            </select>
           </div>
 
-          {/* 數值欄位（固定寬輸入 + 不換行單位） */}
-          <div className={ROW}>
+          {/* 自訂名稱（可空） */}
+          <div className="space-y-1">
+            <input
+              className="w-full border rounded-xl p-3 bg-transparent"
+              value={custom}
+              onChange={(e) => setCustom(e.target.value)}
+              placeholder="自訂動作名稱（可留白使用上方組合）"
+            />
+            <div className="text-xs text-gray-500">
+              將儲存為：<b>{finalName}</b>
+            </div>
+          </div>
+        </div>
+
+        {/* 分類 + 單位 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <label className="text-sm text-gray-500">分類</label>
+            <select
+              className="w-full border rounded-xl p-3 bg-transparent"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as Category)}
+            >
+              {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm text-gray-500">預設單位（點擊切換）</label>
+            <button
+              type="button"
+              onClick={() => setUnit(nextUnit(unit))}
+              className="w-full h-12 rounded-xl border px-4 text-left"
+              title="點擊切換單位"
+            >
+              {unit}
+            </button>
+          </div>
+        </div>
+
+        {/* 預設時間 / 重量 */}
+        <div className="space-y-2">
+          <label className="text-sm text-gray-500">{weightLabel}</label>
+          <div className="flex items-center gap-2">
             <input
               value={defaultWeight}
               onChange={(e) => setDefaultWeight(e.target.value)}
               inputMode="decimal"
-              placeholder="預設重量（可空）"
-              className={CREATE_INPUT}
+              placeholder={weightLabel}
+              className="flex-1 rounded-xl border px-3 py-3 text-base bg-transparent"
             />
-            <span className={`${UNIT_BOX} rounded-xl`}>單位：{unit}</span>
+            <span className="rounded-xl border px-3 py-2 whitespace-nowrap">單位：{weightUnitLabel}</span>
           </div>
+        </div>
 
-          <div className={ROW}>
+        {/* 預設次數 */}
+        <div className="space-y-2">
+          <label className="text-sm text-gray-500">預設次數（可空）</label>
+          <div className="flex items-center gap-2">
             <input
               value={defaultReps}
               onChange={(e) => setDefaultReps(e.target.value)}
               inputMode="numeric"
-              placeholder="預設次數（可空）"
-              className={CREATE_INPUT}
+              placeholder="例如：10"
+              className="flex-1 rounded-xl border px-3 py-3 text-base bg-transparent"
             />
-            <span className={`${UNIT_BOX} rounded-xl`}>單位：次</span>
+            <span className="rounded-xl border px-3 py-2 whitespace-nowrap">單位：次</span>
           </div>
+        </div>
 
-          <label className="mt-1 inline-flex items-center gap-2 select-none">
-            <input type="checkbox" checked={asFavorite} onChange={(e) => setAsFavorite(e.target.checked)} />
-            設為常用（顯示在首頁）
-          </label>
-
+        {/* 送出 */}
+        <div className="pt-1">
           <button
             type="button"
-            onClick={handleCreate}
-            disabled={!canCreate}
-            className="mt-1 h-11 rounded-xl bg-black text-white px-4 disabled:opacity-40"
+            onClick={onCreate}
+            disabled={!canCreate || saving}
+            className="h-11 rounded-xl bg-black text-white px-4 disabled:opacity-40"
           >
             新增
           </button>
+          {msg && <p className="mt-2 text-sm text-gray-700">{msg}</p>}
         </div>
       </section>
 
-      {/* 常用（可排序） */}
-      <section className="rounded-2xl border p-4">
-        <h2 className="text-lg sm:text-xl font-semibold mb-2">常用動作（可排序）</h2>
+      {/* 已儲存動作（含刪除按鈕、批次刪除、淡出動畫） */}
+      <section className="rounded-2xl border p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg sm:text-xl font-semibold">已儲存動作</h2>
+          <div className="flex items-center gap-2">
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="搜尋名稱…"
+              className="rounded-xl border px-3 py-2 bg-transparent"
+            />
+            <select
+              className="rounded-xl border px-3 py-2 bg-transparent"
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as any)}
+              title="排序"
+            >
+              <option value="updated">最近更新</option>
+              <option value="name">名稱</option>
+            </select>
+          </div>
+        </div>
 
-        {favorites.length === 0 ? (
-          <p className="text-gray-500">尚未設定常用動作</p>
+        {/* 批次控制列 */}
+        {filtered.length > 0 && (
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded-xl border px-3 py-1 text-sm"
+              onClick={() => {
+                const allIds = filtered.map(x => x.id);
+                const allChecked = allIds.every(id => selected.has(id));
+                setSelected(allChecked ? new Set() : new Set(allIds));
+              }}
+            >
+              全選 / 取消
+            </button>
+            <button
+              className="rounded-xl border px-3 py-1 text-sm text-red-500 border-red-500 disabled:opacity-40"
+              disabled={selected.size === 0}
+              onClick={async () => {
+                if (!confirm(`確定要刪除 ${selected.size} 筆動作嗎？`)) return;
+                await removeBatch(Array.from(selected));
+              }}
+            >
+              刪除勾選（{selected.size}）
+            </button>
+          </div>
+        )}
+
+        {filtered.length === 0 ? (
+          <p className="text-white/60">尚無動作</p>
         ) : (
-          <ul className="space-y-3">
-            {favorites.map((ex, i) => (
-              <li key={ex.id} className="rounded-xl border p-3 space-y-2">
-                {/* 第1排：名稱靠左、上/下移靠右（直向排列） */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="font-medium truncate">{ex.name}</div>
-                  <div className="flex flex-col gap-1">
-                    <button className="rounded-lg border px-2 py-1" onClick={() => moveFavorite(i, -1)}>上移</button>
-                    <button className="rounded-lg border px-2 py-1" onClick={() => moveFavorite(i, 1)}>下移</button>
-                  </div>
-                </div>
-
-                {/* 第2排：重量 + 單位 + （取消）常用 */}
-                <div className={ROW}>
-                  <input
-                    defaultValue={ex.defaultWeight ?? ""}
-                    inputMode="decimal"
-                    placeholder="重量"
-                    className={NUM_INPUT}
-                    onBlur={(e) => patchExercise(ex.id, { defaultWeight: numOrUndef(e.target.value) })}
-                  />
-                  <button
-                    className={UNIT_BOX}
-                    onClick={() => toggleUnit(ex)}
-                    title="切換單位"
-                  >
-                    單位：{ex.defaultUnit ?? "kg"}
-                  </button>
-
-                  <button
-                    className="rounded-lg border px-3 py-2"
-                    onClick={() => toggleFavorite(ex)}
-                  >
-                    {ex.isFavorite ? "取消常用" : "設為常用"}
-                  </button>
-                </div>
-
-                {/* 第3排：次數 + 單位：次 —— 刪除靠右 */}
-                <div className={`${ROW} justify-between`}>
-                  <div className="flex items-center gap-2">
+          <ul className="divide-y divide-white/10">
+            {filtered.map(ex => {
+              const isRemoving = removing.has(ex.id);
+              return (
+                <li
+                  key={ex.id}
+                  className={[
+                    "py-3 flex items-center justify-between transition-all duration-200",
+                    isRemoving ? "opacity-0 -translate-x-2" : "opacity-100 translate-x-0",
+                  ].join(" ")}
+                >
+                  <div className="flex items-center gap-3">
                     <input
-                      defaultValue={ex.defaultReps ?? ""}
-                      inputMode="numeric"
-                      placeholder="次數"
-                      className={NUM_INPUT}
-                      onBlur={(e) => patchExercise(ex.id, { defaultReps: numOrUndef(e.target.value) })}
+                      type="checkbox"
+                      checked={selected.has(ex.id)}
+                      onChange={(e) => {
+                        const next = new Set(selected);
+                        if (e.target.checked) next.add(ex.id);
+                        else next.delete(ex.id);
+                        setSelected(next);
+                      }}
                     />
-                    <span className={UNIT_BOX}>單位：次</span>
+                    <button
+                      className="text-left"
+                      onClick={() => { setEditing(ex); setDrawerOpen(true); }}
+                      title="點擊編輯"
+                    >
+                      <div className="font-medium">{ex.name}</div>
+                      <div className="text-xs text-white/60">
+                        分類：{CATEGORIES.find(c => c.key === (ex.category as Category))?.label ?? "—"} ・ 單位：{ex.defaultUnit ?? "kg"}
+                      </div>
+                    </button>
                   </div>
-
-                  <button
-                    className="rounded-lg border px-3 py-2 ml-auto"
-                    onClick={() => removeExercise(ex)}
-                  >
-                    刪除
-                  </button>
-                </div>
-              </li>
-            ))}
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="rounded-xl border px-3 py-1"
+                      onClick={() => { setEditing(ex); setDrawerOpen(true); }}
+                    >
+                      編輯
+                    </button>
+                    <button
+                      className="rounded-xl border px-3 py-1 border-red-500 text-red-500"
+                      onClick={async () => {
+                        if (confirm(`確定要刪除「${ex.name}」嗎？`)) {
+                          await removeOne(ex.id);
+                        }
+                      }}
+                    >
+                      刪除
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
 
-      {/* 其他動作 */}
-      <section className="rounded-2xl border p-4">
-        <h2 className="text-lg sm:text-xl font-semibold mb-2">其他動作</h2>
-
-        {others.length === 0 ? (
-          <p className="text-gray-500">無其他動作</p>
-        ) : (
-          <ul className="space-y-3">
-            {others.map((ex) => (
-              <li key={ex.id} className="rounded-xl border p-3 space-y-2">
-                {/* 第1排：名稱 */}
-                <div className="font-medium truncate">{ex.name}</div>
-
-                {/* 第2排：重量 + 單位 + 設為常用 */}
-                <div className={ROW}>
-                  <input
-                    defaultValue={ex.defaultWeight ?? ""}
-                    inputMode="decimal"
-                    placeholder="重量"
-                    className={NUM_INPUT}
-                    onBlur={(e) => patchExercise(ex.id, { defaultWeight: numOrUndef(e.target.value) })}
-                  />
-                  <button className={UNIT_BOX} onClick={() => toggleUnit(ex)}>
-                    單位：{ex.defaultUnit ?? "kg"}
-                  </button>
-
-                  <button className="rounded-lg border px-3 py-2" onClick={() => toggleFavorite(ex)}>設為常用</button>
-                </div>
-
-                {/* 第3排：次數 + 單位：次 —— 刪除靠右 */}
-                <div className={`${ROW} justify-between`}>
-                  <div className="flex items-center gap-2">
-                    <input
-                      defaultValue={ex.defaultReps ?? ""}
-                      inputMode="numeric"
-                      placeholder="次數"
-                      className={NUM_INPUT}
-                      onBlur={(e) => patchExercise(ex.id, { defaultReps: numOrUndef(e.target.value) })}
-                    />
-                    <span className={UNIT_BOX}>單位：次</span>
-                  </div>
-
-                  <button className="rounded-lg border px-3 py-2 ml-auto" onClick={() => removeExercise(ex)}>刪除</button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* 抽屜（僅編輯，不放刪除） */}
+      <ExerciseEditorDrawer
+        open={drawerOpen}
+        exercise={editing}
+        onClose={() => setDrawerOpen(false)}
+        onSaved={load}
+        onDeleted={load}
+      />
     </main>
   );
 }

@@ -1,9 +1,9 @@
-//lib/db/index.ts
+// lib/db/index.ts
 import { openDB, DBSchema, IDBPDatabase } from "idb";
-import type { Exercise, Session, SetRecord, Meta, Unit } from "@/lib/models/types";
+import type { Exercise, Session, SetRecord, Meta, Unit, Category } from "@/lib/models/types";
 import { safeUUID } from "@/lib/utils/uuid";
 
-// Row Types：資料含 updatedAt / dirty（與你的資料列一致）
+// Row Types：資料含 updatedAt / dirty
 export type SessionRow   = Session   & { updatedAt: number; dirty: boolean };
 export type ExerciseRow  = Exercise  & { updatedAt: number; dirty: boolean };
 export type SetRecordRow = SetRecord & { updatedAt: number; dirty: boolean };
@@ -14,41 +14,27 @@ export interface WorkoutDB extends DBSchema {
     key: string;
     value: Meta;
   };
-
   sessions: {
     key: string;
     value: SessionRow;
-    indexes: {
-      updatedAt: number;
-      dirtyIdx: number;
-    };
+    indexes: { updatedAt: number; dirtyIdx: number };
   };
-
   exercises: {
     key: string;
     value: ExerciseRow;
-    indexes: {
-      updatedAt: number;
-      dirtyIdx: number;
-    };
+    indexes: { updatedAt: number; dirtyIdx: number };
   };
-
   sets: {
     key: string;
     value: SetRecordRow;
-    indexes: {
-      updatedAt: number;
-      dirtyIdx: number;
-      by_session: string;
-    };
+    indexes: { updatedAt: number; dirtyIdx: number; by_session: string };
   };
-
   transferLogs: {
-    key: string; // id
+    key: string;
     value: {
       id: string;
       type: "export" | "import";
-      at: string; // ISO
+      at: string;
       count: number;
       filename?: string;
       source?: "share" | "download" | "paste";
@@ -61,14 +47,13 @@ export interface WorkoutDB extends DBSchema {
 
 type StoreName = "sessions" | "exercises" | "sets";
 
-// 用 Promise 緩存 DB 連線
 let _db: Promise<IDBPDatabase<WorkoutDB>> | null = null;
 
 export async function getDB(): Promise<IDBPDatabase<WorkoutDB>> {
   if (!_db) {
     _db = openDB<WorkoutDB>("workout-notes", 6, {
       async upgrade(db, _oldVersion, _newVersion, tx) {
-        // ---- meta ----
+        // meta
         if (db.objectStoreNames.contains("meta")) {
           const store = tx.objectStore("meta") as any;
           const keyPath = store.keyPath;
@@ -90,7 +75,7 @@ export async function getDB(): Promise<IDBPDatabase<WorkoutDB>> {
           db.createObjectStore("meta", { keyPath: "id" });
         }
 
-        // ---- sessions / exercises / sets ----
+        // sessions/exercises/sets
         const ensure = (name: StoreName) => {
           if (!db.objectStoreNames.contains(name)) {
             const s = db.createObjectStore(name, { keyPath: "id" });
@@ -107,12 +92,11 @@ export async function getDB(): Promise<IDBPDatabase<WorkoutDB>> {
             (s as any).createIndex("by_session", "sessionId");
           }
         };
-
         ensure("sessions");
         ensure("exercises");
         ensure("sets");
 
-        // ---- transferLogs ----
+        // transferLogs
         if (!db.objectStoreNames.contains("transferLogs")) {
           const s = db.createObjectStore("transferLogs", { keyPath: "id" });
           (s as any).createIndex("at", "at");
@@ -161,6 +145,7 @@ export async function startSession(): Promise<Session> {
     updatedAt: now,
     deviceId,
     dirty: true,
+    status: "in_progress",
   };
   await db.put("sessions", s);
   return s;
@@ -171,7 +156,7 @@ export async function endSession(id: string): Promise<void> {
   const cur = await db.get("sessions", id);
   if (!cur) return;
   const now = Date.now();
-  const next: SessionRow = { ...cur, endedAt: now, updatedAt: now, dirty: true };
+  const next: SessionRow = { ...cur, endedAt: now, updatedAt: now, dirty: true, status: "ended" };
   await db.put("sessions", next);
 }
 
@@ -186,6 +171,25 @@ export async function getLatestSession(): Promise<Session | undefined> {
 export async function getSessionById(id: string): Promise<Session | undefined> {
   const db = await getDB();
   return (await db.get("sessions", id)) ?? undefined;
+}
+
+// ✅ 新增：本機接續最近一筆（離線用）
+export async function resumeLatestSession(): Promise<Session | null> {
+  const db = await getDB();
+  const all = (await db.getAll("sessions")) as SessionRow[];
+  if (!all || all.length === 0) return null;
+  all.sort((a,b)=> b.updatedAt - a.updatedAt);
+  const cur = all[0];
+  const now = Date.now();
+  const next: SessionRow = {
+    ...cur,
+    endedAt: null,
+    status: "in_progress",
+    updatedAt: now,
+    dirty: true,
+  };
+  await db.put("sessions", next);
+  return next;
 }
 
 /* ============================ Exercises ============================ */
@@ -220,6 +224,8 @@ export async function createExercise(input: {
   defaultReps?: number | null;
   defaultUnit?: Unit | null;
   isFavorite?: boolean | null;
+  sortOrder?: number | null;
+  category?: Category | null;
 }): Promise<Exercise> {
   const db = await getDB();
   const deviceId = await getDeviceId();
@@ -242,9 +248,10 @@ export async function createExercise(input: {
     deletedAt: null,
     updatedAt: now,
     deviceId,
+    category: (input.category ?? "other") as Category,
   };
 
-  const row: ExerciseRow = { ...ex, dirty: true };
+  const row: ExerciseRow = { ...ex, dirty: true } as any;
   await db.put("exercises", row);
   return ex;
 }
@@ -257,6 +264,7 @@ export async function updateExercise(patch: {
   defaultUnit?: Unit | null;
   isFavorite?: boolean | null;
   sortOrder?: number | null;
+  category?: Category | null;
 }): Promise<void> {
   const db = await getDB();
   const cur = await db.get("exercises", patch.id);
@@ -271,10 +279,11 @@ export async function updateExercise(patch: {
     ...(patch.defaultUnit !== undefined ? { defaultUnit: patch.defaultUnit } : {}),
     ...(patch.isFavorite !== undefined ? { isFavorite: patch.isFavorite ?? null } : {}),
     ...(patch.sortOrder !== undefined ? { sortOrder: patch.sortOrder ?? null } : {}),
+    ...(patch.category !== undefined ? { category: (patch.category ?? "other") as Category } : {}),
     updatedAt: now,
   };
 
-  const row: ExerciseRow = { ...next, dirty: true };
+  const row: ExerciseRow = { ...next, dirty: true } as any;
   await db.put("exercises", row);
 }
 
@@ -292,7 +301,7 @@ export async function reorderFavorites(ids: string[]): Promise<void> {
     const id = ids[i];
     const cur = (await tx.store.get(id)) as Exercise | undefined;
     if (!cur || !cur.isFavorite) continue;
-    const next: ExerciseRow = { ...cur, sortOrder: i, updatedAt: now, dirty: true };
+    const next: ExerciseRow = { ...cur, sortOrder: i, updatedAt: now, dirty: true } as any;
     await tx.store.put(next);
   }
   await tx.done;
@@ -420,9 +429,7 @@ export async function deleteSessionWithSets(sessionId: string): Promise<void> {
     } catch {
       const all = (await sets.getAll()) as SetRecord[];
       for (const s of all ?? []) {
-        if (s.sessionId === sessionId) {
-          await sets.delete(s.id);
-        }
+        if (s.sessionId === sessionId) await sets.delete(s.id);
       }
     }
 
@@ -467,14 +474,14 @@ export async function clearTransferLogs() {
   const db = await getDB();
   await db.clear("transferLogs");
 }
-// ① 列出全部 sessions（按 startedAt 升冪）
+
+/* ============================ History Helpers ============================ */
 export async function listAllSessions(): Promise<Session[]> {
   const db = await getDB();
   const all = await db.getAll("sessions");
   return (all ?? []).slice().sort((a, b) => (a.startedAt ?? 0) - (b.startedAt ?? 0));
 }
 
-// ② 批次 upsert 歷史（可選覆蓋）
 export async function bulkUpsertHistory(
   data: { sessions: Session[]; sets: SetRecord[] },
   overwriteExisting = false,
@@ -483,29 +490,18 @@ export async function bulkUpsertHistory(
   const tx = db.transaction(["sessions", "sets"], "readwrite");
   let applied = 0;
 
-  // helper
   async function putIfNeeded(storeName: "sessions" | "sets", row: any) {
-    const existed = await (tx.objectStore(storeName) as any).get(row.id);
+    const store = tx.objectStore(storeName) as any;
+    const existed = await store.get(row.id);
     if (!existed || overwriteExisting) {
-      await (tx.objectStore(storeName) as any).put({ ...row, dirty: true });
+      await store.put({ ...row, dirty: true });
       applied++;
     }
   }
 
-  for (const s of data.sessions ?? []) {
-    await putIfNeeded("sessions", s);
-  }
-  for (const r of data.sets ?? []) {
-    await putIfNeeded("sets", r);
-  }
+  for (const s of data.sessions ?? []) await putIfNeeded("sessions", s);
+  for (const r of data.sets ?? []) await putIfNeeded("sets", r);
 
   await tx.done;
   return applied;
 }
-
-// （你已經有 listAllSets，如無則保留此備援）
-// export async function listAllSets(): Promise<SetRecord[]> {
-//   const db = await getDB();
-//   const all = (await db.getAll("sets")) as SetRecord[];
-//   return (all ?? []).sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
-// }

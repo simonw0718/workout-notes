@@ -78,7 +78,9 @@ function HistoryInner() {
       if (!alive) return;
       setSets(list ?? []);
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [currentId]);
 
   const allChecked = useMemo(
@@ -101,7 +103,12 @@ function HistoryInner() {
     if (busy) return;
     const ids = items.filter((r) => selected[r.s.id]).map((r) => r.s.id);
     if (ids.length === 0) return;
-    if (!window.confirm(`確定要刪除 ${ids.length} 筆場次（含所有組）嗎？此動作無法復原。`)) return;
+    if (
+      !window.confirm(
+        `確定要刪除 ${ids.length} 筆場次（含所有組）嗎？此動作無法復原。`,
+      )
+    )
+      return;
     try {
       setBusy(true);
       for (const id of ids) await deleteSessionWithSets(id);
@@ -117,7 +124,12 @@ function HistoryInner() {
 
   const handleDeleteAll = async () => {
     if (busy) return;
-    if (!window.confirm("確定要刪除「目前所有歷史資料」（所有 sessions 與 sets）嗎？此動作無法復原。")) return;
+    if (
+      !window.confirm(
+        "確定要刪除「目前所有歷史資料」（所有 sessions 與 sets）嗎？此動作無法復原。",
+      )
+    )
+      return;
     try {
       setBusy(true);
       await deleteAllHistory();
@@ -132,28 +144,38 @@ function HistoryInner() {
   };
 
   return (
-    <main className="max-w-screen-lg mx-auto p-6 space-y-6">
-      {/* Header + 工具列 */}
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">歷史紀錄</h1>
-        <div className="flex items-center gap-3">
-          <Link href="/" className="underline">回首頁</Link>
-          <Link
-            href="/analytics"
-            className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50"
-            title="視覺化分析"
-          >
-            Analytics
-          </Link>
-        </div>
-      </header>
+<main className="max-w-screen-lg mx-auto p-4 sm:p-6 space-y-6">
+  {/* Sticky header（統一回首頁風格） */}
+  <div className="sticky top-0 -mx-4 sm:-mx-6 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 z-10">
+    <div className="px-4 sm:px-6 py-3 flex items-center justify-between border-b">
+      <Link
+        href="/"
+        className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50"
+      >
+        回首頁
+      </Link>
+      <div className="flex items-center gap-2">
+        <Link
+          href="/analytics"
+          className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50"
+          title="視覺化分析"
+        >
+          Analytics
+        </Link>
+      </div>
+    </div>
+  </div>
+      <h1 className="text-2xl sm:text-3xl font-bold">歷史紀錄</h1>
 
       {/* 主區：左清單／右明細 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 左：清單 + 批次工具 */}
         <section className="space-y-4">
           <div className="flex items-center gap-3">
-            <button onClick={toggleAll} className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">
+            <button
+              onClick={toggleAll}
+              className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50"
+            >
               {allChecked ? "取消全選" : "全選"}
             </button>
 
@@ -177,18 +199,24 @@ function HistoryInner() {
 
           {/* 清單 */}
           <div className="space-y-3">
-            {items.length === 0 && <p className="text-gray-500">目前沒有歷史紀錄。</p>}
+            {items.length === 0 && (
+              <p className="text-gray-500">目前沒有歷史紀錄。</p>
+            )}
 
             {items.map(({ s }) => {
               const status = s.endedAt ? "已結束" : "進行中";
-              const started = s.startedAt ? new Date(s.startedAt).toLocaleString() : "(未知開始時間)";
+              const started = s.startedAt
+                ? new Date(s.startedAt).toLocaleString()
+                : "(未知開始時間)";
               const checked = !!selected[s.id];
               const active = s.id === currentId;
 
               return (
                 <div
                   key={s.id}
-                  className={`flex items-start gap-3 rounded-2xl border p-4 ${active ? "bg-black text-white" : ""}`}
+                  className={`flex items-start gap-3 rounded-2xl border p-4 ${
+                    active ? "bg-black text-white" : ""
+                  }`}
                 >
                   <input
                     type="checkbox"
@@ -197,14 +225,28 @@ function HistoryInner() {
                     onChange={() => toggleOne(s.id)}
                   />
                   <button
-                    onClick={() => router.push(`/history?sessionId=${encodeURIComponent(s.id)}`)}
+                    onClick={() =>
+                      router.push(
+                        `/history?sessionId=${encodeURIComponent(s.id)}`,
+                      )
+                    }
                     className="flex-1 text-left"
                   >
                     <div className="flex items-center justify-between">
                       <div className="font-medium">{started}</div>
-                      <div className={`text-sm ${active ? "text-white/80" : "text-orange-600"}`}>{status}</div>
+                      <div
+                        className={`text-sm ${
+                          active ? "text-white/80" : "text-orange-600"
+                        }`}
+                      >
+                        {status}
+                      </div>
                     </div>
-                    <div className={`text-xs break-all mt-1 ${active ? "text-white/70" : "text-gray-400"}`}>
+                    <div
+                      className={`text-xs break-all mt-1 ${
+                        active ? "text-white/70" : "text-gray-400"
+                      }`}
+                    >
                       sessionId: {s.id}
                     </div>
                   </button>
@@ -221,7 +263,9 @@ function HistoryInner() {
               <h2 className="text-lg font-medium">場次明細</h2>
               {selectedSession ? (
                 <Link
-                  href={`/summary?sessionId=${encodeURIComponent(selectedSession.id)}`}
+                  href={`/summary?sessionId=${encodeURIComponent(
+                    selectedSession.id,
+                  )}`}
                   className="text-sm underline"
                 >
                   查看本次訓練摘要
@@ -232,19 +276,26 @@ function HistoryInner() {
             </div>
 
             {!selectedSession ? (
-              <div className="text-gray-500 text-sm mt-2">左側點選任一場次，即可在此看到細節。</div>
+              <div className="text-gray-500 text-sm mt-2">
+                左側點選任一場次，即可在此看到細節。
+              </div>
             ) : sets.length === 0 ? (
               <div className="text-gray-500 text-sm mt-2">此場次尚無紀錄。</div>
             ) : (
               <>
                 <div className="text-sm text-gray-600 mt-2">
-                  開始：{fmt(selectedSession.startedAt)}　/　結束：{fmt(selectedSession.endedAt)}
+                  開始：{fmt(selectedSession.startedAt)}　/　結束：
+                  {fmt(selectedSession.endedAt)}
                 </div>
                 <ul className="divide-y mt-3">
                   {sets.map((r) => (
-                    <li key={r.id} className="py-2 flex items-center justify-between">
+                    <li
+                      key={r.id}
+                      className="py-2 flex items-center justify-between"
+                    >
                       <div className="text-sm font-mono">
-                        {r.weight} {r.unit ?? "kg"} × {r.reps}{r.rpe != null ? ` · RPE${r.rpe}` : ""}
+                        {r.weight} {r.unit ?? "kg"} × {r.reps}
+                        {r.rpe != null ? ` · RPE${r.rpe}` : ""}
                       </div>
                       <div className="text-xs text-gray-500">
                         {new Date(r.createdAt).toLocaleTimeString()}
