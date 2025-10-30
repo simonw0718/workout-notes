@@ -11,11 +11,11 @@ import {
 import type { Exercise, Unit, Category } from "@/lib/models/types";
 import ExerciseEditorDrawer from "@/components/ExerciseEditorDrawer";
 
-// ⬇ 新增：動態滾輪（IndexedDB）
+// ⬇ 動態滾輪（IndexedDB）
 import { loadWheels } from "@/lib/db/wheels";
 import WheelOptionsDrawer from "@/components/WheelOptionsDrawer";
 
-/** 下面兩個常數只做「讀取失敗時的 fallback」 */
+/** 失敗／尚未初始化時的後援清單 */
 const EQUIP_FALLBACK = ["啞鈴", "槓鈴", "器械", "繩索", "徒手", "其他"] as const;
 const MOVE_FALLBACK = [
   "胸推", "肩推", "划船", "深蹲", "腿推", "硬舉",
@@ -41,7 +41,7 @@ const numOrUndef = (v: string) => {
 };
 
 export default function SettingsPage() {
-  // === 滾輪資料（動態 from IndexedDB；失敗時 fallback） ===
+  // === 滾輪資料（from IndexedDB；失敗時 fallback） ===
   const [equipList, setEquipList] = useState<string[]>([]);
   const [moveList, setMoveList] = useState<string[]>([]);
   const [wheelsOpen, setWheelsOpen] = useState(false);
@@ -70,7 +70,7 @@ export default function SettingsPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Exercise | null>(null);
 
-  // 載入滾輪清單
+  // 載入滾輪清單（抽屜儲存後也會呼叫）
   const loadWheelOptions = async () => {
     try {
       const { equip, moves } = await loadWheels();
@@ -190,7 +190,7 @@ export default function SettingsPage() {
             回首頁
           </Link>
           <div className="flex items-center gap-2">
-            {/* ⬇ 新增：滾輪選項編輯入口 */}
+            {/* 滾輪選項編輯入口 */}
             <button
               onClick={() => setWheelsOpen(true)}
               className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50"
@@ -438,11 +438,16 @@ export default function SettingsPage() {
         onDeleted={loadExercises}
       />
 
-      {/* 滾輪設定抽屜（儲存後即時刷新下拉內容） */}
+      {/* 滾輪設定抽屜（抽屜內會自行儲存；關閉時呼叫 onSaved 重新載入） */}
       <WheelOptionsDrawer
         open={wheelsOpen}
         onClose={() => setWheelsOpen(false)}
-        onSaved={loadWheelOptions}
+        leftOptions={equipList}     // 左滾輪：器材
+        rightOptions={moveList}     // 右滾輪：常見動作
+        onSave={async () => {
+          // 抽屜按「儲存」後，重載一次資料讓下拉選單即時更新
+          await loadWheelOptions();
+        }}
       />
     </main>
   );

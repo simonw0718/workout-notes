@@ -29,6 +29,10 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "other", label: "其他" },
 ];
 
+// ---- 路線 B：底部導覽固定高度（內容要預留空間避免被擋住） ----
+const MOBILE_BOTTOM_BAR = 64; // px：導覽本體高度（不含安全區）
+const MOBILE_BOTTOM_GAP = 12; // px：導覽與畫面底部的間距
+
 // 更魯棒的本機備援：由最近 N 場訓練與必要時全庫的 sets 推出「最近使用」，依最後出現時間去重
 async function buildLocalRecent(N = 3): Promise<Array<Pick<Exercise,"id"|"name"|"defaultUnit"|"category">>> {
   const exAll = await listAllExercises();
@@ -214,9 +218,16 @@ export default function Home() {
     }
   };
 
+  // ---- 計算內容區 padding-bottom（預留固定導覽與安全區）----
+  const mobileBottomPadding = `calc(${MOBILE_BOTTOM_BAR + MOBILE_BOTTOM_GAP}px + env(safe-area-inset-bottom, 0px))`;
+
   return (
-    <main className="min-h-[100dvh] bg-white">
-      <div className="max-w-screen-sm mx-auto px-4 py-6 space-y-6 pb-24 sm:pb-6 relative z-20">
+    <main className="min-h-[100dvh] bg-black">
+      {/* 內容區：行動裝置預留 padding-bottom，避免被固定底部導覽擋住 */}
+      <div
+        className="max-w-screen-sm mx-auto px-4 py-6 space-y-6 sm:pb-6 relative z-20"
+        style={{ paddingBottom: mobileBottomPadding }}
+      >
         {/* 狀態 Banner */}
         <div className="w-full flex justify-center">
           <div
@@ -251,7 +262,7 @@ export default function Home() {
                 <button
                   onClick={handleContinue}
                   disabled={busy}
-                  className="px-3 py-1 rounded-xl bg黑 text-white border border-white hover:opacity-90 disabled:opacity-50"
+                  className="px-3 py-1 rounded-xl bg-black text-white border border-white hover:opacity-90 disabled:opacity-50"
                 >
                   繼續上次訓練
                 </button>
@@ -345,13 +356,27 @@ export default function Home() {
         )}
       </div>
 
-      {/* 底部捷徑 */}
-      <nav className="sm:hidden fixed bottom-4 inset-x-0 px-4">
-        <div className="max-w-screen-sm mx-auto grid grid-cols-4 gap-3">
-          <Link href="/history" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm">歷史</Link>
-          <Link href="/settings" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm">設定</Link>
-          <Link href="/sync" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm">資料搬運</Link>
-          <Link href="/diagnostics" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm">偵錯</Link>
+      {/* 底部捷徑：固定在行動裝置底部（含安全區 padding） */}
+      <nav
+        className="sm:hidden fixed inset-x-0 bottom-0 px-4"
+        style={{ paddingBottom: `calc(${MOBILE_BOTTOM_GAP}px + env(safe-area-inset-bottom, 0px))` }}
+      >
+        <div
+          className="max-w-screen-sm mx-auto grid grid-cols-4 gap-3 rounded-2xl bg-black/90 border border-white/20 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-black/75"
+          style={{ height: MOBILE_BOTTOM_BAR }}
+        >
+          <Link href="/history" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm flex items-center justify-center">
+            歷史
+          </Link>
+          <Link href="/settings" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm flex items-center justify-center">
+            設定
+          </Link>
+          <Link href="/sync" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm flex items-center justify-center">
+            資料搬運
+          </Link>
+          <Link href="/diagnostics" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm flex items-center justify-center">
+            偵錯
+          </Link>
         </div>
       </nav>
     </main>
