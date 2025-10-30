@@ -4,9 +4,14 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
-  addSet, deleteSet, getExerciseById, getLastSetsForExercise,
-  getLatestSetAcrossSessions, getLatestSetInSession,
-  listSetsBySessionAndExercise, startSession,
+  addSet,
+  deleteSet,
+  getExerciseById,
+  getLastSetsForExercise,
+  getLatestSetAcrossSessions,
+  getLatestSetInSession,
+  listSetsBySessionAndExercise,
+  startSession,
 } from "@/lib/db";
 import type { SetRecord, Unit } from "@/lib/models/types";
 
@@ -33,7 +38,7 @@ function ExerciseInner() {
   // 錯誤提示
   const [lastError, setLastError] = useState<string>("");
 
-  /** 單位（頁內可切換），重量、次數、RPE */
+  /** 單位、重量、次數、RPE */
   const [unit, setUnit] = useState<Unit>("lb");
   const [weight, setWeight] = useState<number | string>(60);
   const [reps, setReps] = useState<number | string>(8);
@@ -56,12 +61,29 @@ function ExerciseInner() {
 
   const disabled = !sessionId || !exerciseId;
 
-  /** 休息倒數計時器狀態（預設 120 秒） */
+  /** 休息倒數計時器狀態 */
   const [targetSeconds, setTargetSeconds] = useState<number>(120);
   const [secondsLeft, setSecondsLeft] = useState<number>(120);
   const [running, setRunning] = useState<boolean>(false);
   const [customInput, setCustomInput] = useState<string>("");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /** 完成提醒：Toast + 螢幕閃爍 */
+  const [toast, setToast] = useState<string>("");
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [flash, setFlash] = useState(false);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(""), 3000);
+  };
+  const triggerFlash = () => {
+    setFlash(true);
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = setTimeout(() => setFlash(false), 500);
+  };
 
   const toggleUnit = () => {
     setUnit((prev) => {
@@ -115,12 +137,9 @@ function ExerciseInner() {
 
         // 自動帶入策略
         const fallbackUnit: Unit = (ex?.defaultUnit ?? "lb") as Unit;
-        const fallbackWeight = ex?.defaultWeight ?? undefined;
-        const fallbackReps = ex?.defaultReps ?? undefined;
-
         let nextUnit: Unit = fallbackUnit;
-        let nextWeight: number | undefined = fallbackWeight;
-        let nextReps: number | undefined = fallbackReps;
+        let nextWeight: number | undefined = ex?.defaultWeight ?? undefined;
+        let nextReps: number | undefined = ex?.defaultReps ?? undefined;
 
         if (crossSessionLast) {
           nextUnit = (crossSessionLast.unit ?? nextUnit) as Unit;
@@ -147,6 +166,12 @@ function ExerciseInner() {
       cancelled = true;
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseId, sessionId]);
@@ -178,7 +203,6 @@ function ExerciseInner() {
     try {
       await addSet({ sessionId, exerciseId, weight: w, reps: r, unit, rpe });
       await refreshList();
-      // 保留 reps；顯示提示
       setJustSaved(true);
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setJustSaved(false), 2000);
@@ -225,62 +249,58 @@ function ExerciseInner() {
     }
   };
 
-  /** 倒數計時器：控制函式 */
-  const startTimer = (secs?: number) => {
-    const s = Math.max(1, Math.floor(secs ?? secondsLeft ?? targetSeconds));
-    setTargetSeconds(s);
-    setSecondsLeft(s);
-    setRunning(true);
-  };
-  const stopTimer = () => setRunning(false);
-  const resetTimer = () => {
-    setRunning(false);
-    setSecondsLeft(targetSeconds);
+  /** ====== 計時器：控制函式 ====== */
+  const clearTick = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
   };
 
-  // interval 控制
-  useEffect(() => {
-    if (!running) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
-    }
+  const startTimer = (secs?: number) => {
+    // 若有指定秒數就用它；否則以「剩餘秒數 > 0 ? 剩餘秒數 : 目標秒數」
+    const base = Number.isFinite(secs as number)
+      ? Math.max(1, Math.floor(secs as number))
+      : (secondsLeft > 0 ? secondsLeft : targetSeconds);
+
+    clearTick();
+    setTargetSeconds(base);
+    setSecondsLeft(base);
+    setRunning(true);
+
     intervalRef.current = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
+          clearTick();
           setRunning(false);
-          // 到 0：震動
-          if ("vibrate" in navigator && typeof navigator.vibrate === "function") {
-            try {
-              navigator.vibrate([200, 100, 200]);
-            } catch {}
-          }
+          // 完成提醒（不使用震動；用 Toast + 閃爍）
+          triggerFlash();
+          showToast("休息結束！開始下一組吧 👊");
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [running]);
+  };
 
-  /** 自訂秒數：輸入完就把數字「帶到倒數區」（不自動開始） */
+  const stopTimer = () => {
+    clearTick();
+    setRunning(false);
+  };
+
+  const resetTimer = () => {
+    clearTick();
+    setRunning(false);
+    setSecondsLeft(targetSeconds);
+  };
+
+  /** 自訂秒數：輸入完就把數字帶到倒數區（不自動開始） */
   const applyCustomSeconds = () => {
     const n = Math.floor(Number(customInput));
     if (Number.isFinite(n) && n > 0) {
+      stopTimer();
       setTargetSeconds(n);
       setSecondsLeft(n);
-      setRunning(false); // 依你的需求：不自動開始
     }
   };
 
@@ -338,7 +358,7 @@ function ExerciseInner() {
           </section>
         )}
 
-        {/* 新增一組：黑底白字，置中＆有框 */}
+        {/* 新增一組 */}
         <section className="rounded-2xl p-4 bg-black text-white space-y-4 text-center">
           <h2 className="font-semibold">新增一組</h2>
 
@@ -435,9 +455,7 @@ function ExerciseInner() {
             >
               + 記一組
             </button>
-            {justSaved && (
-              <p className="text-xs text-green-300 mt-2">已紀錄！</p>
-            )}
+            {justSaved && <p className="text-xs text-green-300 mt-2">已紀錄！</p>}
             {!canSave && (
               <p className="text-xs text-white/70 mt-2">
                 請輸入有效的重量與次數，並確認已在首頁開始訓練
@@ -446,7 +464,7 @@ function ExerciseInner() {
           </div>
         </section>
 
-        {/* 休息倒數（黑底白框白字；時間顯示白底黑字） */}
+        {/* 休息倒數 */}
         <section className="rounded-2xl p-4 bg-black text-white space-y-4 text-center">
           <h2 className="font-semibold">休息計時</h2>
 
@@ -479,7 +497,7 @@ function ExerciseInner() {
                 </button>
               </div>
 
-              {/* 預設秒數 + 自訂（黑底白框白字） */}
+              {/* 預設秒數 + 自訂 */}
               <div className="mt-3 grid grid-cols-4 gap-2">
                 <button
                   onClick={() => startTimer(120)}
@@ -509,15 +527,15 @@ function ExerciseInner() {
                     value={customInput}
                     onChange={(e) => setCustomInput(e.target.value)}
                     onBlur={applyCustomSeconds}
-                    onKeyDown={(e) => { if (e.key === "Enter") applyCustomSeconds(); }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") applyCustomSeconds();
+                    }}
                   />
                 </div>
               </div>
 
               {/* 目前目標提示 */}
-              <div className="mt-2 text-xs text-white/70">
-                目前目標：{fmtSec(targetSeconds)}
-              </div>
+              <div className="mt-2 text-xs text-white/70">目前目標：{fmtSec(targetSeconds)}</div>
             </div>
           </div>
         </section>
@@ -553,11 +571,25 @@ function ExerciseInner() {
           {undoVisible && (
             <div className="mt-3 flex items-center justify-between rounded-lg bg-yellow-50 text-yellow-800 px-3 py-2 text-sm">
               <span>已刪除一筆</span>
-              <button onClick={handleUndo} className="underline">復原</button>
+              <button onClick={handleUndo} className="underline">
+                復原
+              </button>
             </div>
           )}
         </section>
       </div>
+
+      {/* ===== 提醒：Toast ===== */}
+      {toast && (
+        <div className="fixed top-4 inset-x-0 z-[60] flex justify-center pointer-events-none">
+          <div className="pointer-events-auto rounded-xl bg-white text-black shadow px-4 py-2 text-sm border">
+            {toast}
+          </div>
+        </div>
+      )}
+
+      {/* ===== 螢幕閃爍（簡易覆蓋 0.5s）===== */}
+      {flash && <div className="fixed inset-0 z-[50] bg-white/80 pointer-events-none" />}
     </main>
   );
 }

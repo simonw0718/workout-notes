@@ -42,3 +42,12 @@ html, body {
 
 /* placeholder 也要白色 */
 ::placeholder { color: #aaa !important; }
+
+/* === Timer finished flash (3s) === */
+@keyframes wn-flash-bg {
+  0%, 100% { background-color: inherit; }
+  50%      { background-color: #ffffff; } /* 閃白一下 */
+}
+.wn-flash-animate {
+  animation: wn-flash-bg 0.5s ease-in-out 6; /* 0.5s * 6 = 3s */
+}

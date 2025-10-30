@@ -11,10 +11,13 @@ import {
 import type { Exercise, Unit, Category } from "@/lib/models/types";
 import ExerciseEditorDrawer from "@/components/ExerciseEditorDrawer";
 
-/** 左側器材（不會出現在最終名稱） */
-const EQUIP_PREFIX = ["啞鈴", "槓鈴", "器械", "繩索", "徒手", "其他"] as const;
-/** 右側常見動作 */
-const MOVE_SUFFIX = [
+// ⬇ 新增：動態滾輪（IndexedDB）
+import { loadWheels } from "@/lib/db/wheels";
+import WheelOptionsDrawer from "@/components/WheelOptionsDrawer";
+
+/** 下面兩個常數只做「讀取失敗時的 fallback」 */
+const EQUIP_FALLBACK = ["啞鈴", "槓鈴", "器械", "繩索", "徒手", "其他"] as const;
+const MOVE_FALLBACK = [
   "胸推", "肩推", "划船", "深蹲", "腿推", "硬舉",
   "側平舉", "前平舉", "飛鳥", "二頭彎舉", "三頭下壓",
   "卷腹", "抬腿",
@@ -38,9 +41,14 @@ const numOrUndef = (v: string) => {
 };
 
 export default function SettingsPage() {
+  // === 滾輪資料（動態 from IndexedDB；失敗時 fallback） ===
+  const [equipList, setEquipList] = useState<string[]>([]);
+  const [moveList, setMoveList] = useState<string[]>([]);
+  const [wheelsOpen, setWheelsOpen] = useState(false);
+
   // 名稱（雙選單 + 自訂）
-  const [equip, setEquip] = useState<(typeof EQUIP_PREFIX)[number]>("啞鈴");
-  const [move, setMove] = useState<(typeof MOVE_SUFFIX)[number]>("胸推");
+  const [equip, setEquip] = useState<string>("");
+  const [move, setMove] = useState<string>("");
   const [custom, setCustom] = useState<string>("");
 
   // 其他欄位
@@ -62,17 +70,42 @@ export default function SettingsPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Exercise | null>(null);
 
-  // 載入
-  const load = async () => {
+  // 載入滾輪清單
+  const loadWheelOptions = async () => {
+    try {
+      const { equip, moves } = await loadWheels();
+      const el = (equip?.length ? equip : Array.from(EQUIP_FALLBACK)) as string[];
+      const ml = (moves?.length ? moves : Array.from(MOVE_FALLBACK)) as string[];
+      setEquipList(el);
+      setMoveList(ml);
+      setEquip((prev) => prev || el[0] || "");
+      setMove((prev)  => prev  || ml[0] || "");
+    } catch {
+      // 失敗 → fallback
+      const el = Array.from(EQUIP_FALLBACK) as string[];
+      const ml = Array.from(MOVE_FALLBACK) as string[];
+      setEquipList(el);
+      setMoveList(ml);
+      setEquip((prev) => prev || el[0] || "");
+      setMove((prev)  => prev  || ml[0] || "");
+    }
+  };
+
+  // 載入動作清單
+  const loadExercises = async () => {
     const exs = await listAllExercises();
     setAll(exs);
   };
-  useEffect(() => { load(); }, []);
+
+  useEffect(() => { loadWheelOptions(); }, []);
+  useEffect(() => { loadExercises(); }, []);
 
   // 最終名稱（自訂 > 組合）
   const finalName = useMemo(() => {
     const c = custom.trim();
-    return c || `${equip}${move}`;
+    const left = (equip ?? "").trim();
+    const right = (move ?? "").trim();
+    return c || `${left}${right}`;
   }, [custom, equip, move]);
   const canCreate = finalName.trim().length > 0;
 
@@ -101,15 +134,13 @@ export default function SettingsPage() {
         category,
       });
       setMsg(`已新增：${finalName}`);
-      // reset
+      // reset（保留使用者選的滾輪值，比較順手）
       setCustom("");
-      setEquip("啞鈴");
-      setMove("胸推");
       setCategory("other");
       setUnit("kg");
       setDefaultWeight("");
       setDefaultReps("");
-      await load();
+      await loadExercises();
     } catch (e: any) {
       setMsg(`新增失敗：${e?.message ?? e}`);
     } finally {
@@ -127,7 +158,7 @@ export default function SettingsPage() {
       next.delete(id);
       return next;
     });
-    await load();
+    await loadExercises();
     setRemoving(prev => {
       const next = new Set(prev);
       next.delete(id);
@@ -143,7 +174,7 @@ export default function SettingsPage() {
     await new Promise(r => setTimeout(r, 220));
     await Promise.all(ids.map(id => deleteExercise(id)));
     setSelected(new Set());
-    await load();
+    await loadExercises();
     setRemoving(new Set());
   }
 
@@ -152,13 +183,21 @@ export default function SettingsPage() {
 
   return (
     <main className="max-w-screen-sm mx-auto p-4 sm:p-6 space-y-6">
-      {/* Sticky header：返回首頁、其他入口 */}
+      {/* Sticky header：返回首頁、其他入口（樣式與設定/歷史一致） */}
       <div className="sticky top-0 -mx-4 sm:-mx-6 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 z-10">
         <div className="px-4 sm:px-6 py-3 flex items-center justify-between border-b">
           <Link href="/" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">
             回首頁
           </Link>
           <div className="flex items-center gap-2">
+            {/* ⬇ 新增：滾輪選項編輯入口 */}
+            <button
+              onClick={() => setWheelsOpen(true)}
+              className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50"
+              title="編輯滾輪選項"
+            >
+              編輯滾輪選項
+            </button>
             <Link href="/diagnostics" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">偵錯</Link>
             <Link href="/sync" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">資料搬運</Link>
           </div>
@@ -175,24 +214,24 @@ export default function SettingsPage() {
         <div className="space-y-3">
           <label className="text-sm text-gray-500">目前動作名稱（可留白用上方組合）</label>
 
-          {/* 兩個下拉：器材 × 動作 */}
+          {/* 兩個下拉：器材 × 動作（來源：IndexedDB，可在抽屜調整） */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <select
               className="w-full border rounded-xl p-3 bg-transparent"
               value={equip}
-              onChange={(e) => setEquip(e.target.value as any)}
+              onChange={(e) => setEquip(e.target.value)}
               aria-label="器材"
             >
-              {EQUIP_PREFIX.map(x => <option key={x} value={x}>{x}</option>)}
+              {equipList.map((x, i) => <option key={`${x}-${i}`} value={x}>{x}</option>)}
             </select>
 
             <select
               className="w-full border rounded-xl p-3 bg-transparent"
               value={move}
-              onChange={(e) => setMove(e.target.value as any)}
+              onChange={(e) => setMove(e.target.value)}
               aria-label="動作"
             >
-              {MOVE_SUFFIX.map(x => <option key={x} value={x}>{x}</option>)}
+              {moveList.map((x, i) => <option key={`${x}-${i}`} value={x}>{x}</option>)}
             </select>
           </div>
 
@@ -395,8 +434,15 @@ export default function SettingsPage() {
         open={drawerOpen}
         exercise={editing}
         onClose={() => setDrawerOpen(false)}
-        onSaved={load}
-        onDeleted={load}
+        onSaved={loadExercises}
+        onDeleted={loadExercises}
+      />
+
+      {/* 滾輪設定抽屜（儲存後即時刷新下拉內容） */}
+      <WheelOptionsDrawer
+        open={wheelsOpen}
+        onClose={() => setWheelsOpen(false)}
+        onSaved={loadWheelOptions}
       />
     </main>
   );
