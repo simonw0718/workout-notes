@@ -29,21 +29,19 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "other", label: "其他" },
 ];
 
-// ---- 路線 B：底部導覽固定高度（內容要預留空間避免被擋住） ----
-const MOBILE_BOTTOM_BAR = 64; // px：導覽本體高度（不含安全區）
-const MOBILE_BOTTOM_GAP = 12; // px：導覽與畫面底部的間距
-
 // 更魯棒的本機備援：由最近 N 場訓練與必要時全庫的 sets 推出「最近使用」，依最後出現時間去重
-async function buildLocalRecent(N = 3): Promise<Array<Pick<Exercise,"id"|"name"|"defaultUnit"|"category">>> {
+async function buildLocalRecent(
+  N = 3
+): Promise<Array<Pick<Exercise, "id" | "name" | "defaultUnit" | "category">>> {
   const exAll = await listAllExercises();
   if (!exAll.length) return [];
 
   // 1) 取最近 N 場（優先 updatedAt，退而求其次 startedAt）
   const sessions = (await listAllSessions())
-    .filter(s => !s.deletedAt)
-    .sort((a,b)=> {
-      const au = (a.updatedAt ?? a.startedAt ?? 0);
-      const bu = (b.updatedAt ?? b.startedAt ?? 0);
+    .filter((s) => !s.deletedAt)
+    .sort((a, b) => {
+      const au = a.updatedAt ?? a.startedAt ?? 0;
+      const bu = b.updatedAt ?? b.startedAt ?? 0;
       return bu - au;
     })
     .slice(0, Math.max(1, N));
@@ -53,9 +51,9 @@ async function buildLocalRecent(N = 3): Promise<Array<Pick<Exercise,"id"|"name"|
 
   const pushFromSets = (sets: SetRecord[]) => {
     sets
-      .filter(x => !x.deletedAt)
-      .sort((a,b)=> (b.updatedAt ?? b.createdAt) - (a.updatedAt ?? a.createdAt))
-      .forEach(r => {
+      .filter((x) => !x.deletedAt)
+      .sort((a, b) => (b.updatedAt ?? b.createdAt) - (a.updatedAt ?? a.createdAt))
+      .forEach((r) => {
         if (!seen.has(r.exerciseId)) {
           seen.add(r.exerciseId);
           ordered.push(r.exerciseId);
@@ -83,11 +81,11 @@ async function buildLocalRecent(N = 3): Promise<Array<Pick<Exercise,"id"|"name"|
 
   if (ordered.length === 0) return [];
 
-  const map = new Map(exAll.map(e=>[e.id, e]));
+  const map = new Map(exAll.map((e) => [e.id, e]));
   return ordered
-    .map(id => map.get(id))
+    .map((id) => map.get(id))
     .filter(Boolean)
-    .map(e => ({
+    .map((e) => ({
       id: e!.id,
       name: e!.name,
       defaultUnit: e!.defaultUnit ?? null,
@@ -100,7 +98,9 @@ export default function Home() {
   const [favorites, setFavorites] = useState<Exercise[]>([]);
   const [all, setAll] = useState<Exercise[]>([]);
   const [tab, setTab] = useState<TabKey>("recent");
-  const [recent, setRecent] = useState<Pick<Exercise, "id" | "name" | "defaultUnit" | "category">[]>([]);
+  const [recent, setRecent] = useState<
+    Pick<Exercise, "id" | "name" | "defaultUnit" | "category">[]
+  >([]);
   const [busy, setBusy] = useState(false);
 
   // 只要 session 尚未 ended 視為訓練中
@@ -122,7 +122,9 @@ export default function Home() {
         setAll(exAll.status === "fulfilled" ? (exAll.value ?? []) : []);
       } catch {
         if (!alive) return;
-        setSession(null); setFavorites([]); setAll([]);
+        setSession(null);
+        setFavorites([]);
+        setAll([]);
       }
     })();
 
@@ -131,7 +133,7 @@ export default function Home() {
       let filled = false;
       try {
         const r = await getRecentExercises(5);
-        const mapped = r.map(x => ({
+        const mapped = r.map((x) => ({
           id: x.id,
           name: x.name,
           defaultUnit: (x.defaultUnit as any) ?? null,
@@ -156,14 +158,21 @@ export default function Home() {
       }
     })();
 
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const listForTab = useMemo(() => {
     if (tab === "recent") return recent;
     return all
       .filter((e: any) => (e.category ?? "other") === tab)
-      .map((e) => ({ id: e.id, name: e.name, defaultUnit: e.defaultUnit, category: e.category as any }));
+      .map((e) => ({
+        id: e.id,
+        name: e.name,
+        defaultUnit: e.defaultUnit,
+        category: e.category as any,
+      }));
   }, [tab, all, recent]);
 
   const handleStart = async () => {
@@ -218,16 +227,10 @@ export default function Home() {
     }
   };
 
-  // ---- 計算內容區 padding-bottom（預留固定導覽與安全區）----
-  const mobileBottomPadding = `calc(${MOBILE_BOTTOM_BAR + MOBILE_BOTTOM_GAP}px + env(safe-area-inset-bottom, 0px))`;
-
   return (
     <main className="min-h-[100dvh] bg-black">
-      {/* 內容區：行動裝置預留 padding-bottom，避免被固定底部導覽擋住 */}
-      <div
-        className="max-w-screen-sm mx-auto px-4 py-6 space-y-6 sm:pb-6 relative z-20"
-        style={{ paddingBottom: mobileBottomPadding }}
-      >
+      {/* 內容區 */}
+      <div className="max-w-screen-sm mx-auto px-4 py-6 space-y-6 sm:pb-6 relative">
         {/* 狀態 Banner */}
         <div className="w-full flex justify-center">
           <div
@@ -241,12 +244,18 @@ export default function Home() {
 
         {/* Header */}
         <header className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Workout Notes</h1>
+          <h1 className="text-2xl font-bold text-white">Workout Notes</h1>
           <div className="hidden sm:flex items-center gap-2">
-            <Link href="/history" className="rounded-xl bg-black text-white border border-white px-3 py-1 text-sm hover:opacity-90">
+            <Link
+              href="/history"
+              className="rounded-xl bg-black text-white border border-white px-3 py-1 text-sm hover:opacity-90"
+            >
               歷史
             </Link>
-            <Link href="/settings" className="rounded-xl bg-black text-white border border-white px-3 py-1 text-sm hover:opacity-90">
+            <Link
+              href="/settings"
+              className="rounded-xl bg-black text-white border border-white px-3 py-1 text-sm hover:opacity-90"
+            >
               設定
             </Link>
 
@@ -283,18 +292,33 @@ export default function Home() {
         <div className="flex sm:hidden gap-2">
           {!isActive ? (
             <>
-              <button onClick={handleStart} disabled={busy} className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white disabled:opacity-50">
+              <button
+                onClick={handleStart}
+                disabled={busy}
+                className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white disabled:opacity-50"
+              >
                 開始訓練
               </button>
-              <button onClick={handleContinue} disabled={busy} className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white disabled:opacity-50">
+              <button
+                onClick={handleContinue}
+                disabled={busy}
+                className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white disabled:opacity-50"
+              >
                 繼續上次
               </button>
-              <Link href="/settings" className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white text-center">
+              <Link
+                href="/settings"
+                className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white text-center"
+              >
                 設定
               </Link>
             </>
           ) : (
-            <button onClick={handleEnd} disabled={busy} className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white disabled:opacity-50">
+            <button
+              onClick={handleEnd}
+              disabled={busy}
+              className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white disabled:opacity-50"
+            >
               結束
             </button>
           )}
@@ -307,7 +331,11 @@ export default function Home() {
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                className={`px-3 py-2 rounded-xl border ${tab === t.key ? "bg-black text-white border-white" : "bg-white text-black"}`}
+                className={`px-3 py-2 rounded-xl border ${
+                  tab === t.key
+                    ? "bg-black text-white border-white"
+                    : "bg-white text-black"
+                }`}
                 aria-pressed={tab === t.key}
               >
                 {t.label}
@@ -319,13 +347,17 @@ export default function Home() {
         {/* 清單（休息中唯讀） */}
         <section>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {listForTab.length === 0 && <div className="text-gray-500">此分類尚無動作</div>}
+            {listForTab.length === 0 && (
+              <div className="text-gray-400">此分類尚無動作</div>
+            )}
             {listForTab.map((ex) =>
               isActive && session ? (
                 <Link
                   key={ex.id}
                   className="rounded-2xl bg-black text-white border border-white p-4 text-center hover:opacity-90"
-                  href={`/exercise?exerciseId=${encodeURIComponent(ex.id)}&sessionId=${encodeURIComponent(session.id)}`}
+                  href={`/exercise?exerciseId=${encodeURIComponent(
+                    ex.id
+                  )}&sessionId=${encodeURIComponent(session.id)}`}
                 >
                   {ex.name}
                 </Link>
@@ -347,38 +379,25 @@ export default function Home() {
           <CurrentProgressCard />
         </Suspense>
 
+        {/* 查看摘要 + 歷史（並排、同風格） */}
         {session && (
-          <div className="pt-2">
-            <Link href={`/summary?sessionId=${encodeURIComponent(session.id)}`} className="underline text-sm">
+          <div className="grid grid-cols-2 gap-2 pt-2">
+            <Link
+              href={`/summary?sessionId=${encodeURIComponent(session.id)}`}
+              className="rounded-2xl bg-black text-white border border-white px-4 py-3 text-center hover:opacity-90"
+            >
               查看本次訓練摘要
+            </Link>
+            <Link
+              href="/history"
+              className="rounded-2xl bg-black text-white border border-white px-4 py-3 text-center hover:opacity-90"
+            >
+              歷史
             </Link>
           </div>
         )}
       </div>
-
-      {/* 底部捷徑：固定在行動裝置底部（含安全區 padding） */}
-      <nav
-        className="sm:hidden fixed inset-x-0 bottom-0 px-4"
-        style={{ paddingBottom: `calc(${MOBILE_BOTTOM_GAP}px + env(safe-area-inset-bottom, 0px))` }}
-      >
-        <div
-          className="max-w-screen-sm mx-auto grid grid-cols-4 gap-3 rounded-2xl bg-black/90 border border-white/20 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-black/75"
-          style={{ height: MOBILE_BOTTOM_BAR }}
-        >
-          <Link href="/history" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm flex items-center justify-center">
-            歷史
-          </Link>
-          <Link href="/settings" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm flex items-center justify-center">
-            設定
-          </Link>
-          <Link href="/sync" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm flex items-center justify-center">
-            資料搬運
-          </Link>
-          <Link href="/diagnostics" className="rounded-2xl bg-black text-white border border-white py-3 text-center shadow-sm flex items-center justify-center">
-            偵錯
-          </Link>
-        </div>
-      </nav>
+      {/* ✅ 已移除：底下四個浮動按鈕（避免行動版點擊失效問題） */}
     </main>
   );
 }
