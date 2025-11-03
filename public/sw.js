@@ -1,5 +1,5 @@
-/* public/sw.js — Workout Notes shell v4.7.1 */
-const VERSION    = "v4.7.1";
+/* public/sw.js — Workout Notes shell v4.8.1 */
+const VERSION    = "v4.8.1";
 const CACHE_NAME = `workout-shell-${VERSION}`;
 
 const STATIC_ASSETS = [

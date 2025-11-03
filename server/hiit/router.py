@@ -7,8 +7,11 @@ import uuid, datetime, json, os
 hiit = APIRouter(prefix="/api/hiit", tags=["hiit"])
 
 # ---------- Helpers ----------
-def _id() -> str: return str(uuid.uuid4())
-def _now_iso() -> str: return datetime.datetime.utcnow().isoformat()
+def _id() -> str: 
+    return str(uuid.uuid4())
+
+def _now_iso() -> str: 
+    return datetime.datetime.utcnow().isoformat()
 
 # ---------- DTO: Exercises ----------
 class HiitExercise(BaseModel):
@@ -55,6 +58,7 @@ class HiitExerciseUpdate(BaseModel):
 class HiitStepItem(BaseModel):
     order: int
     title: str
+    # 固定 time 模式
     work_sec: int = 20
     rest_sec: int = 10
     rounds: int = 1
@@ -90,13 +94,14 @@ DB: Dict[str, Dict[str, dict]] = {
 
 # ---------- Seed (exercises) ----------
 def _clean_seed_item(it: dict) -> dict:
+    """避免外部 seed 帶入會衝突/污染的鍵"""
     data = dict(it)
     data.pop("id", None)
-    data.pop("defaultMode", None)
+    data.pop("defaultMode", None)  # 我們固定帶入 "time"
     return data
 
 def _seed_from_json():
-    if DB["exercises"]:
+    if DB["exercises"]:  # 已有資料就不覆蓋
         return
     base = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(base, "seed_exercises.json")
@@ -113,9 +118,9 @@ def _seed_from_json():
 
 _seed_from_json()
 
-# ---------- Utils ----------
+# ---------- Utils: filtering ----------
 def _text_hit(hay: str, q: str) -> bool:
-    # 子字串包含比「全字相等」好用許多
+    # 子字串包含（substring match）
     return q in hay
 
 def _matches(item: dict, q: Optional[str], category: Optional[str],
@@ -156,7 +161,7 @@ def list_exercises(
     equipment: Optional[str] = Query(None),
     bodyPart: Optional[str] = Query(None),
     goal: Optional[str] = Query(None),
-    # 新增：status=no(預設，只回未刪) / only(只回已刪) / with(全部)
+    # status=no(預設，只回未刪) / only(只回已刪) / with(全部)
     status: Literal["no","only","with"] = Query("no"),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
@@ -220,6 +225,7 @@ def delete_exercise(eid: str, hard: bool = Query(False)):
     it["deletedAt"] = _now_iso()
     return {"ok": True, "hard": False}
 
+# 開發用：強制重載 seed
 @hiit.post("/dev/seed-exercises")
 def dev_seed_exercises(force: bool = True):
     base = os.path.dirname(os.path.abspath(__file__))

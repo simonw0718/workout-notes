@@ -24,23 +24,19 @@ export default function TrashExercisesPage() {
   };
   useEffect(() => { load(); }, []);
 
-  const toggle = (id: string) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggle = (id: string) => setSel(s => { const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
 
   const doRestore = async () => {
     if (sel.size === 0) return;
     setBusy(true);
-    try {
-      await Promise.all([...sel].map(id => restoreExercise(id)));
-      await load(); setSel(new Set());
-    } finally { setBusy(false); }
+    try { await Promise.all([...sel].map(id => restoreExercise(id))); await load(); setSel(new Set()); }
+    finally { setBusy(false); }
   };
   const doPurge = async () => {
     if (sel.size === 0) return;
     setBusy(true);
-    try {
-      await Promise.all([...sel].map(id => deleteExercise(id, true))); // 硬刪
-      await load(); setSel(new Set());
-    } finally { setBusy(false); }
+    try { await Promise.all([...sel].map(id => deleteExercise(id, true))); await load(); setSel(new Set()); }
+    finally { setBusy(false); }
   };
 
   const onRestoreClick = () => {
@@ -58,18 +54,25 @@ export default function TrashExercisesPage() {
     <div className="p-4 text-white">
       <div className="mb-3"><BackButton /></div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">回收桶</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
           <button onClick={onRestoreClick} disabled={busy || sel.size === 0}
-            className={`px-3 py-2 rounded-xl border ${armedRestore?'border-emerald-400 text-emerald-200':'border-emerald-400 text-emerald-400'} disabled:opacity-50`}>
+            className={`inline-flex px-2 py-1 md:px-3 md:py-2 rounded-lg md:rounded-xl border text-sm md:text-base ${
+              armedRestore?'border-emerald-400 text-emerald-200':'border-emerald-400 text-emerald-400'
+            } disabled:opacity-50`}>
             {armedRestore ? '確定復原？' : `復原（${sel.size}）`}
           </button>
           <button onClick={onPurgeClick} disabled={busy || sel.size === 0}
-            className={`px-3 py-2 rounded-xl border ${armedPurge?'border-red-500 text-red-200':'border-red-400 text-red-400'} disabled:opacity-50`}>
+            className={`inline-flex px-2 py-1 md:px-3 md:py-2 rounded-lg md:rounded-xl border text-sm md:text-base ${
+              armedPurge?'border-red-500 text-red-200':'border-red-400 text-red-400'
+            } disabled:opacity-50`}>
             {armedPurge ? '永久刪除？' : `永久刪除（${sel.size}）`}
           </button>
-          <Link href="/hiit/exercises" className="px-3 py-2 rounded-xl border border-white/60 text-white/90">回動作庫</Link>
+          <Link href="/hiit/exercises"
+            className="inline-flex px-2 py-1 md:px-3 md:py-2 rounded-lg md:rounded-xl border border-white/60 text-white/90 text-sm md:text-base">
+            回動作庫
+          </Link>
         </div>
       </div>
 
@@ -82,7 +85,8 @@ export default function TrashExercisesPage() {
             return (
               <li key={x.id} className="p-3 rounded-xl border border-white/20 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <input type="checkbox" className="size-4 accent-white" checked={checked} onChange={() => toggle(x.id!)} aria-label={`選取 ${x.name}`} />
+                  <input type="checkbox" className="size-4 accent-white" checked={checked}
+                         onChange={() => toggle(x.id!)} aria-label={`選取 ${x.name}`} />
                   <div>
                     <div className="font-medium">{x.name}</div>
                     <div className="text-xs opacity-70">{x.primaryCategory} · 預設 {x.defaultValue}s · {x.equipment}</div>

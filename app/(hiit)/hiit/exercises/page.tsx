@@ -23,7 +23,7 @@ export default function ExercisesPage() {
       const data = await listHiitExercises({
         q: q.trim() || undefined,
         category: category || undefined,
-        status: 'no',              // 只看未刪
+        status: 'no',
         sort: 'category',
         limit: 200,
       });
@@ -34,17 +34,14 @@ export default function ExercisesPage() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
   useEffect(() => { const t = setTimeout(load, 250); return () => clearTimeout(t); }, [q, category]);
 
-  const toggle = (id: string) => {
-    setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  };
+  const toggle = (id: string) => setSel(s => { const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
 
   const deleteSelected = async () => {
     if (sel.size === 0) return;
     setBusy(true);
     try {
-      await Promise.all([...sel].map(id => deleteExercise(id, false))); // 軟刪
-      await load();
-      setSel(new Set()); setManage(false);
+      await Promise.all([...sel].map(id => deleteExercise(id, false)));
+      await load(); setSel(new Set()); setManage(false);
     } finally { setBusy(false); }
   };
 
@@ -58,36 +55,54 @@ export default function ExercisesPage() {
     <div className="p-4 text-white">
       <div className="mb-3"><BackButton /></div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">動作庫</h1>
-        <div className="flex items-center gap-2">
+
+        {/* 單行可橫向滑動 */}
+        <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
           {!manage ? (
-            <button onClick={() => { setManage(true); setSel(new Set()); setArmedBatch(false); }} className="px-3 py-2 rounded-xl border border-white">管理</button>
+            <button
+              onClick={() => { setManage(true); setSel(new Set()); setArmedBatch(false); }}
+              className="inline-flex px-2 py-1 md:px-3 md:py-2 rounded-lg md:rounded-xl border border-white text-sm md:text-base"
+            >
+              管理
+            </button>
           ) : (
             <>
-              <button onClick={() => { setManage(false); setSel(new Set()); setArmedBatch(false); }} className="px-3 py-2 rounded-xl border border-white/60">取消</button>
+              <button
+                onClick={() => { setManage(false); setSel(new Set()); setArmedBatch(false); }}
+                className="inline-flex px-2 py-1 md:px-3 md:py-2 rounded-lg md:rounded-xl border border-white/60 text-white/90 text-sm md:text-base"
+              >
+                取消
+              </button>
               <button
                 onClick={onBatchDeleteClick}
                 disabled={busy || sel.size === 0}
-                className={`px-3 py-2 rounded-xl border ${armedBatch ? 'border-red-500 text-red-200' : 'border-red-400 text-red-400'} disabled:opacity-50`}
+                className={`inline-flex px-2 py-1 md:px-3 md:py-2 rounded-lg md:rounded-xl border text-sm md:text-base ${
+                  armedBatch ? 'border-red-500 text-red-200' : 'border-red-400 text-red-400'
+                } disabled:opacity-50`}
                 title={armedBatch ? '再按一次確認刪除' : '刪除所選'}
               >
                 {armedBatch ? '確定？' : `刪除（${sel.size}）`}
               </button>
             </>
           )}
-          <Link href="/hiit/exercises/new" className="px-3 py-2 rounded-xl border border-white">新增</Link>
-          <Link href="/hiit/exercises/trash" className="px-3 py-2 rounded-xl border border-white/60 text-white/90">回收桶</Link>
-          <Link href="/hiit" className="px-3 py-2 rounded-xl border border-white/60 text-white/90">回 HIIT</Link>
+
+          <Link href="/hiit/exercises/new" className="inline-flex px-2 py-1 md:px-3 md:py-2 rounded-lg md:rounded-xl border border-white text-sm md:text-base">新增</Link>
+          <Link href="/hiit/exercises/trash" className="inline-flex px-2 py-1 md:px-3 md:py-2 rounded-lg md:rounded-xl border border-white/60 text-white/90 text-sm md:text-base">回收桶</Link>
+          <Link href="/hiit" className="inline-flex px-2 py-1 md:px-3 md:py-2 rounded-lg md:rounded-xl border border-white/60 text-white/90 text-sm md:text-base">回 HIIT</Link>
         </div>
       </div>
 
       {/* 篩選 */}
       <div className="mt-4 flex flex-wrap gap-2">
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="搜尋名稱 / 提示 / 目標…" className="bg-black border border-white/20 rounded-lg px-3 py-2 min-w-[220px]" />
-        <select value={category} onChange={e=>setCategory(e.target.value)} className="bg-black border border-white/20 rounded-lg px-3 py-2">
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="搜尋名稱 / 提示 / 目標…"
+               className="bg-black border border-white/20 rounded-lg px-3 py-2 min-w-[220px]" />
+        <select value={category} onChange={e=>setCategory(e.target.value)}
+                className="bg-black border border-white/20 rounded-lg px-3 py-2">
           <option value="">全部分類</option>
-          <option value="cardio">心肺</option><option value="lower">下肢</option><option value="upper">上肢</option><option value="core">核心</option><option value="full">全身</option>
+          <option value="cardio">心肺</option><option value="lower">下肢</option>
+          <option value="upper">上肢</option><option value="core">核心</option><option value="full">全身</option>
         </select>
       </div>
 
@@ -101,7 +116,10 @@ export default function ExercisesPage() {
             return (
               <li key={x.id} className="p-3 rounded-xl border border-white/20 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  {manage && <input type="checkbox" className="size-4 accent-white" checked={checked} onChange={() => toggle(x.id!)} aria-label={`選取 ${x.name}`} />}
+                  {manage && (
+                    <input type="checkbox" className="size-4 accent-white" checked={checked}
+                      onChange={() => toggle(x.id!)} aria-label={`選取 ${x.name}`} />
+                  )}
                   <div>
                     <div className="font-medium">{x.name}</div>
                     <div className="text-xs opacity-70">{x.primaryCategory} · 預設 {x.defaultValue}s · {x.equipment}</div>
@@ -112,7 +130,10 @@ export default function ExercisesPage() {
                   {!manage ? (
                     <Link href={`/hiit/exercises/edit?id=${encodeURIComponent(x.id!)}`} className="text-sm underline">編輯</Link>
                   ) : (
-                    <button onClick={() => toggle(x.id!)} className={`px-2 py-1 rounded-lg border ${checked ? 'border-white text-white' : 'border-white/40 text-white/70'}`}>{checked ? '已選' : '選取'}</button>
+                    <button onClick={() => toggle(x.id!)}
+                      className={`px-2 py-1 rounded-lg border ${checked ? 'border-white text-white' : 'border-white/40 text-white/70'}`}>
+                      {checked ? '已選' : '選取'}
+                    </button>
                   )}
                 </div>
               </li>

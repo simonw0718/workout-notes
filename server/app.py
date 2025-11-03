@@ -16,7 +16,7 @@ from .crud import (
 )
 from .utils import new_id, get_current_version
 
-# ✅ 新增：HIIT 子路由（/api/hiit/*）
+# ✅ HIIT 子路由（/api/hiit/*）
 from .hiit.router import hiit as hiit_router
 
 # ---- DB 初始化 ----
@@ -24,28 +24,26 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Workout Notes Sync API")
 
-# ---- CORS 設定（允許 localhost/127.0.0.1 與區網 192.168.*）----
+# ---- CORS 設定：允許本機與區網（192.168.*.* / 10.*.*.* / 172.16-31.*.*）----
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:3100",
     "http://127.0.0.1:3100",
-    "http://192.168.31.241:3100",
-    "http://192.168.31.241:3000",
-    # 如果前端正式網域不同，記得加在這裡（例如 Cloudflare Pages）
-    # "https://your-frontend.pages.dev",
-    # "https://www.your-frontend.com",
 ]
+# 允許常見私網段（含任意 port）
+PRIVATE_NET_REGEX = r"http://(192\.168|10\.\d{1,3}|172\.(1[6-9]|2[0-9]|3[0-1]))\.\d{1,3}\.\d{1,3}(:\d+)?"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=r"http://192\.168\.\d{1,3}\.\d{1,3}(:\d+)?",
+    allow_origin_regex=PRIVATE_NET_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ✅ 掛上 HIIT 路由（它本身 prefix="/api/hiit"）
+# ✅ 掛上 HIIT 路由
 app.include_router(hiit_router)
 
 # ---- 基本路由 ----

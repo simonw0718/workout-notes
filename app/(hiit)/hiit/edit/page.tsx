@@ -3,7 +3,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import BackButton from '@/components/BackButton';
 import StepEditor from '@/components/hiit/StepEditor';
 import type { HiitStep } from '@/lib/hiit/types';
 import { getWorkout, updateWorkout } from '@/lib/hiit/api';
@@ -20,7 +19,7 @@ export default function EditHiit() {
   const [cooldown, setCooldown] = useState(0);
   const [steps, setSteps]       = useState<HiitStep[]>([]);
 
-  // ── 載入既有方案 ─────────────────────────────────────────────
+  // 載入
   useEffect(() => {
     if (!wid) return;
     let alive = true;
@@ -34,7 +33,6 @@ export default function EditHiit() {
         setWarmup(Number(w.warmup_sec ?? 0));
         setCooldown(Number(w.cooldown_sec ?? 0));
 
-        // 後端不含 mode；補 'time' 給編輯器用
         const mapped: HiitStep[] = (w.steps ?? []).map((s: any) => ({
           order: s.order,
           title: s.title,
@@ -55,7 +53,7 @@ export default function EditHiit() {
     return () => { alive = false; };
   }, [wid]);
 
-  // ── 即時計算總時長（含 warmup / cooldown） ───────────────────
+  // 即時總時長
   const totalText = useMemo(() => {
     const dto = {
       id: wid,
@@ -75,7 +73,6 @@ export default function EditHiit() {
     return formatHMS(computeWorkoutMs(dto as any));
   }, [wid, name, warmup, cooldown, steps]);
 
-  // ── 共用：轉 payload ─────────────────────────────────────────
   const buildPayload = () => ({
     name,
     warmup_sec: clamp0(warmup),
@@ -91,7 +88,6 @@ export default function EditHiit() {
     })),
   });
 
-  // ── 儲存／儲存並播放 ─────────────────────────────────────────
   const handleSave = async () => {
     if (!wid) return;
     setBusy(true);
@@ -118,20 +114,33 @@ export default function EditHiit() {
     }
   };
 
-  // ── UI ──────────────────────────────────────────────────────
   if (!wid) {
-    return <div className="p-4 text-sm text-white/80"><BackButton /> 缺少 wid。</div>;
+    return <div className="p-4 text-sm text-white/80">缺少 wid。</div>;
   }
   if (loading) {
-    return <div className="p-4 text-white"><BackButton /> 載入中…</div>;
+    return <div className="p-4 text-white">載入中…</div>;
   }
 
   return (
     <div className="p-4 space-y-4 text-white">
-      <div className="mb-2"><BackButton /></div>
+      <div className="mb-2">
+        {/* 安全返回：history 有上一頁就 back；否則回 /hiit */}
+        <button
+          onClick={() => {
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+              history.back();
+            } else {
+              location.href = '/hiit';
+            }
+          }}
+          className="px-3 py-1 rounded-xl border border-white/60 text-white/90"
+        >
+          ← 上一頁
+        </button>
+      </div>
+
       <h1 className="text-xl font-semibold">編輯 HIIT</h1>
 
-      {/* 總時長（即時） */}
       <div className="text-sm opacity-80">總時長：{totalText}</div>
 
       <div className="space-y-2">
@@ -158,7 +167,7 @@ export default function EditHiit() {
           <div className="text-sm mb-1 text-white/80">Cooldown 秒</div>
           <input
             type="number"
-            className="border rounded-xl px-3 py-2 w-full bg-black text-white border-white/20"
+            className="border rounded-xl px-3 py-2 w-full bg黑 text-white border-white/20"
             value={cooldown}
             min={0}
             onChange={(e)=>setCooldown(clamp0(e.target.value))}
@@ -168,11 +177,11 @@ export default function EditHiit() {
 
       <StepEditor value={steps} onChange={setSteps} />
 
-      <div className="flex gap-2">
-        <button onClick={handleSave} disabled={busy} className="px-4 py-2 rounded-xl border border-white">
+      <div className="flex gap-2 overflow-x-auto whitespace-nowrap [-webkit-overflow-scrolling:touch]">
+        <button onClick={handleSave} disabled={busy} className="shrink-0 px-4 py-2 rounded-xl border border-white">
           {busy ? '儲存中…' : '儲存變更'}
         </button>
-        <button onClick={handleSaveAndPlay} disabled={busy} className="px-4 py-2 rounded-xl border border-white">
+        <button onClick={handleSaveAndPlay} disabled={busy} className="shrink-0 px-4 py-2 rounded-xl border border-white">
           {busy ? '儲存中…' : '儲存並播放'}
         </button>
       </div>
@@ -180,7 +189,6 @@ export default function EditHiit() {
   );
 }
 
-// ── helpers ───────────────────────────────────────────────────
 function clamp0(v: any) {
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? n : 0;
