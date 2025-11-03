@@ -1,14 +1,18 @@
-// /app/(hiit)/hiit/edit/page.tsx
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import StepEditor from '@/components/hiit/StepEditor';
 import type { HiitStep } from '@/lib/hiit/types';
 import { getWorkout, updateWorkout } from '@/lib/hiit/api';
 import { computeWorkoutMs, formatHMS } from '@/lib/hiit/time';
 
-export default function EditHiit() {
+function clamp0(v: any) {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+function EditHiitInner() {
   const sp = useSearchParams();
   const wid = sp.get('wid') || '';
 
@@ -116,7 +120,7 @@ export default function EditHiit() {
   };
 
   if (!wid) {
-    return <div className="p-4 text-sm text-white/80">缺少 wid。</div>;
+    return <div className="p-4 text-sm text白/80">缺少 wid。</div>;
   }
   if (loading) {
     return <div className="p-4 text-white">載入中…</div>;
@@ -165,7 +169,7 @@ export default function EditHiit() {
           />
         </div>
         <div>
-          <div className="text-sm mb-1 text-white/80">Cooldown 秒</div>
+          <div className="text-sm mb-1 text白/80">Cooldown 秒</div>
           <input
             type="number"
             className="border rounded-xl px-3 py-2 w-full bg-black text-white border-white/20"
@@ -190,7 +194,10 @@ export default function EditHiit() {
   );
 }
 
-function clamp0(v: any) {
-  const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? n : 0;
+export default function EditHiit() {
+  return (
+    <Suspense fallback={<div className="p-4 text-white">載入中…</div>}>
+      <EditHiitInner />
+    </Suspense>
+  );
 }

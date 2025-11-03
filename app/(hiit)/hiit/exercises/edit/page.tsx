@@ -1,13 +1,13 @@
-///app/(hiit)/hiit/exercises/edit/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import type React from 'react';
 import { useSearchParams } from 'next/navigation';
 import BackButton from '@/components/BackButton';
 import ExerciseForm from '@/components/hiit/ExerciseForm';
 import { getExercise, updateExercise, deleteExercise, type HiitExerciseDto } from '@/lib/hiit/api';
 
-export default function EditExercisePage() {
+function EditExerciseInner() {
   const sp = useSearchParams();
   const id = sp.get('id') || '';
 
@@ -75,7 +75,7 @@ export default function EditExercisePage() {
     }
   };
 
-  const onDeleteCapture = (e: React.SyntheticEvent) => {
+  const onDeleteCapture: React.EventHandler<React.SyntheticEvent> = (e) => {
     e.preventDefault();
     e.stopPropagation();
     onDeleteClick();
@@ -129,5 +129,13 @@ export default function EditExercisePage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function EditExercisePage() {
+  return (
+    <Suspense fallback={<div className="p-4 text-white"><BackButton /> 載入中…</div>}>
+      <EditExerciseInner />
+    </Suspense>
   );
 }

@@ -1,7 +1,6 @@
-// /app/(hiit)/hiit/play/page.tsx
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import RingCountdown from '@/components/hiit/RingCountdown';
 import PlayerHUD from '@/components/hiit/PlayerHUD';
@@ -10,7 +9,7 @@ import { buildTimeline, type TimelineItem } from '@/lib/hiit/timeline';
 import { getWorkout } from '@/lib/hiit/api';
 import { speak, isTtsEnabled, setTtsEnabled, cancelSpeak, primeTTS } from '@/lib/hiit/tts';
 
-export default function Play() {
+function PlayInner() {
   const sp = useSearchParams();
   const wid = sp.get('wid') || '';
 
@@ -271,7 +270,7 @@ export default function Play() {
     <div className="p-6 flex flex-col items-center text-white relative">
       <div className="self-start mb-2 flex items-center gap-2 w-full">
         <BackButton />
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items中心 gap-2">
           <label className="text-sm opacity-80">語音播報</label>
           <button
             onClick={() => {
@@ -336,5 +335,13 @@ export default function Play() {
         <button onClick={withPrime(() => setPaused(p => !p))} className="px-3 py-2 rounded-xl border border-white">{paused ? '繼續' : '暫停'}</button>
       </div>
     </div>
+  );
+}
+
+export default function Play() {
+  return (
+    <Suspense fallback={<div className="p-4 text-white"><BackButton /> Loading…</div>}>
+      <PlayInner />
+    </Suspense>
   );
 }

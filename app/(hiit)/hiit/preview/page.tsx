@@ -1,7 +1,6 @@
-// /app/(hiit)/hiit/preview/page.tsx
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getWorkout, listHiitExercises, type HiitExerciseDto } from '@/lib/hiit/api';
@@ -65,7 +64,7 @@ function toSlug(englishHead: string) {
     .replace(/^-+|-+$/g, '');
 }
 
-export default function Preview() {
+function PreviewInner() {
   const sp = useSearchParams();
   const wid = sp.get('wid') || '';
 
@@ -259,5 +258,13 @@ export default function Preview() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Preview() {
+  return (
+    <Suspense fallback={<div className="p-4 text-white">載入中…</div>}>
+      <PreviewInner />
+    </Suspense>
   );
 }
