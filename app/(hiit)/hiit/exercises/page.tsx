@@ -15,6 +15,7 @@ export default function ExercisesPage() {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [armedBatch, setArmedBatch] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const ARM_MS = 2500;
 
   const load = async () => {
@@ -51,15 +52,101 @@ export default function ExercisesPage() {
     else { setArmedBatch(true); window.setTimeout(() => setArmedBatch(false), ARM_MS); }
   };
 
+  // ---------- 匯出：產生一行一個動作的文字 ----------
+  const generateText = () => {
+    const lines = items.map(x => {
+      const name = (x.name || '').trim();
+      const cat = x.primaryCategory || '';
+      const body = (x.bodyPart || []).join(', ');
+      return `${name} | ${cat} | ${body}`.trim();
+    });
+    return lines.join('\n');
+  };
+
+  // ---------- 下載 .txt 檔 ----------
+  const handleDownload = () => {
+    try {
+      const text = generateText();
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'hiit-exercises.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setShowExportDialog(false);
+    } catch (e: any) {
+      alert(`下載失敗：${e?.message ?? e}`);
+    }
+  };
+
+  // ---------- iOS 也能用的複製 ----------
+  async function copyText(text: string): Promise<boolean> {
+    try {
+      if (typeof navigator !== 'undefined' && 'clipboard' in navigator && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch { /* fallback */ }
+
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+
+    const range = document.createRange();
+    range.selectNodeContents(ta);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    ta.select();
+    try { ta.setSelectionRange(0, ta.value.length); } catch {}
+
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch { ok = false; }
+
+    sel?.removeAllRanges();
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  const handleCopy = async () => {
+    try {
+      setBusy(true);
+      const ok = await copyText(generateText());
+      if (ok) alert('清單已複製到剪貼簿。');
+      else alert('複製失敗，請改用下載或手動選取。');
+    } catch (e: any) {
+      alert(`複製失敗：${e?.message ?? e}`);
+    } finally {
+      setBusy(false);
+      setShowExportDialog(false);
+    }
+  };
+
   return (
     <div className="p-4 text-white">
       <div className="mb-3"><BackButton /></div>
 
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">動作庫</h1>
+        {/* 手機：避免換行、過長則截斷 */}
+        <h1 className="text-xl sm:text-2xl font-semibold whitespace-nowrap overflow-hidden text-ellipsis">
+          動作庫
+        </h1>
 
         {/* 單行可橫向滑動 */}
-        <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
+        <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap [-webkit-overflow-scrolling:touch]">
+          <button
+            onClick={() => setShowExportDialog(true)}
+            className="inline-flex px-2 py-1 md:px-3 md:py-2 rounded-lg md:rounded-xl border border-white text-sm md:text-base"
+          >
+            匯出清單
+          </button>
+
           {!manage ? (
             <button
               onClick={() => { setManage(true); setSel(new Set()); setArmedBatch(false); }}
@@ -96,13 +183,23 @@ export default function ExercisesPage() {
 
       {/* 篩選 */}
       <div className="mt-4 flex flex-wrap gap-2">
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="搜尋名稱 / 提示 / 目標…"
-               className="bg-black border border-white/20 rounded-lg px-3 py-2 min-w-[220px]" />
-        <select value={category} onChange={e=>setCategory(e.target.value)}
-                className="bg-black border border-white/20 rounded-lg px-3 py-2">
+        <input
+          value={q}
+          onChange={e=>setQ(e.target.value)}
+          placeholder="搜尋名稱 / 提示 / 目標…"
+          className="bg-black border border-white/20 rounded-lg px-3 py-2 min-w-[220px]"
+        />
+        <select
+          value={category}
+          onChange={e=>setCategory(e.target.value)}
+          className="bg-black border border-white/20 rounded-lg px-3 py-2"
+        >
           <option value="">全部分類</option>
-          <option value="cardio">心肺</option><option value="lower">下肢</option>
-          <option value="upper">上肢</option><option value="core">核心</option><option value="full">全身</option>
+          <option value="cardio">心肺</option>
+          <option value="lower">下肢</option>
+          <option value="upper">上肢</option>
+          <option value="core">核心</option>
+          <option value="full">全身</option>
         </select>
       </div>
 
@@ -122,7 +219,9 @@ export default function ExercisesPage() {
                   )}
                   <div>
                     <div className="font-medium">{x.name}</div>
-                    <div className="text-xs opacity-70">{x.primaryCategory} · 預設 {x.defaultValue}s · {x.equipment}</div>
+                    <div className="text-xs opacity-70">
+                      {x.primaryCategory} · 預設 {x.defaultValue}s · {x.equipment}
+                    </div>
                     {x.cue && <div className="text-xs opacity-60 mt-1">提示：{x.cue}</div>}
                   </div>
                 </div>
@@ -141,6 +240,45 @@ export default function ExercisesPage() {
           })}
           {items.length === 0 && <li className="p-3 rounded-xl border border-white/20 text-sm opacity-80">沒有資料。</li>}
         </ul>
+      )}
+
+      {/* 匯出對話框 */}
+      {showExportDialog && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60">
+          <div className="w-full sm:w-[520px] bg-zinc-900 rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 border border-white/10">
+            <div className="text-base sm:text-lg font-medium">匯出清單</div>
+            <div className="text-sm text-white/70 mt-1">
+              內容格式：<code className="text-white/90">名稱 | 類別 | 部位</code>，一行一個動作。
+            </div>
+
+            <div className="mt-4 flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={handleDownload}
+                className="flex-1 px-4 py-2 rounded-xl border border-white text-white"
+              >
+                ⬇️ 下載清單名稱
+              </button>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="flex-1 px-4 py-2 rounded-xl border border-white text-white"
+              >
+                📋 複製到剪貼簿
+              </button>
+            </div>
+
+            <div className="mt-2 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setShowExportDialog(false)}
+                className="px-3 py-1.5 rounded-lg border border-white/40 text-white/70 text-sm"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
