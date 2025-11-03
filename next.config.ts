@@ -1,8 +1,8 @@
-// next.config.ts
+// /next.config.ts
 const isProd = process.env.NODE_ENV === "production";
 
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+const nextConfig: any = {
   // ✅ 純靜態輸出（Cloudflare Pages 用 out/）
   output: "export",
 
@@ -21,13 +21,10 @@ const nextConfig = {
   productionBrowserSourceMaps: false,
 
   // 在正式環境才移除 console（保留 error/warn）
-  compiler: isProd
-    ? { removeConsole: { exclude: ["error", "warn"] } }
-    : {},
+  compiler: isProd ? { removeConsole: { exclude: ["error", "warn"] } } : {},
 };
 
-// ⚠️ dev 區網白名單（只在非 prod 生效）。
-// 有些版本型別檢查會對 experimental 噴型別錯誤，這段用 ts-ignore 包起來避免你提到的「第 49 行」之類錯誤。
+// ⚠️ dev 區網白名單（只在非 prod 生效）
 if (!isProd) {
   // @ts-ignore - allow Next internal dev options
   nextConfig.experimental = {
@@ -35,6 +32,17 @@ if (!isProd) {
       "^https?://(localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0|192\\.168\\.[0-9]{1,3}\\.[0-9]{1,3})(?::\\d+)?$",
     allowedDevOrigins: ["https://192.168.31.241:3443"],
   };
+
+  // ✅ 只有在「沒有」設定 NEXT_PUBLIC_API_BASE 時，才啟用 dev 代理
+  if (!process.env.NEXT_PUBLIC_API_BASE) {
+    nextConfig.rewrites = async () => [
+      {
+        source: "/api/hiit/:path*",
+        destination: "http://localhost:8000/api/hiit/:path*", // 你的 FastAPI/uvicorn
+      },
+      // 如需其他既有 API 一起代理，可在這裡繼續加
+    ];
+  }
 }
 
 export default nextConfig;

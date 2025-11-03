@@ -1,4 +1,4 @@
-# server/app.py
+# /server/app.py
 from typing import Any, Optional, Callable
 
 from fastapi import FastAPI, Depends, HTTPException, Query
@@ -16,6 +16,9 @@ from .crud import (
 )
 from .utils import new_id, get_current_version
 
+# ✅ 新增：HIIT 子路由（/api/hiit/*）
+from .hiit.router import hiit as hiit_router
+
 # ---- DB 初始化 ----
 Base.metadata.create_all(bind=engine)
 
@@ -29,6 +32,9 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:3100",
     "http://192.168.31.241:3100",
     "http://192.168.31.241:3000",
+    # 如果前端正式網域不同，記得加在這裡（例如 Cloudflare Pages）
+    # "https://your-frontend.pages.dev",
+    # "https://www.your-frontend.com",
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -38,6 +44,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ✅ 掛上 HIIT 路由（它本身 prefix="/api/hiit"）
+app.include_router(hiit_router)
 
 # ---- 基本路由 ----
 @app.get("/")
@@ -74,10 +83,10 @@ def register_device(payload: schemas.RegisterDeviceRequest, db: Session = Depend
 
 # ---------- Auth：以既有 userId 綁定當前裝置並核發新 token ----------
 class AttachDevicePayload(BaseModel):
-  user_id: str = Field(alias="userId")
-  device_id: Optional[str] = Field(default=None, alias="deviceId")
-  class Config:
-    allow_population_by_field_name = True
+    user_id: str = Field(alias="userId")
+    device_id: Optional[str] = Field(default=None, alias="deviceId")
+    class Config:
+        allow_population_by_field_name = True
 
 @app.post("/auth/attach-device", response_model=schemas.RegisterDeviceResponse)
 def attach_device(payload: AttachDevicePayload, db: Session = Depends(get_db)):

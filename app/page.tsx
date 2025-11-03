@@ -398,6 +398,16 @@ export default function Home() {
         )}
       </div>
       {/* ✅ 已移除：底下四個浮動按鈕（避免行動版點擊失效問題） */}
+            {/* --- 暫時測試用：HIIT 入口 --- */}
+      <div className="mt-10 p-6 text-center border-t border-neutral-800">
+        <Link
+          href="/hiit"
+          className="inline-block px-4 py-2 rounded-xl border border-white text-white bg-black hover:opacity-80"
+        >
+          🚀 前往 HIIT 測試頁
+        </Link>
+      </div>
+      {/* --- 之後上線時可刪除 --- */}
     </main>
   );
 }
