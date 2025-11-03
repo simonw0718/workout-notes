@@ -99,15 +99,10 @@ export default function Page() {
 
   return (
     <div className="p-4 text-white">
-        {/* 新：右上角的返回主導向 */}
-        <div className="flex items-center justify-end mb-3">
-          <Link
-            href="/"
-            className="text-sm text-white/70 hover:text-white transition"
-          >
-            ← Workout
-          </Link>
-        </div>
+      {/* 右上角主導向 */}
+      <div className="flex items-center justify-end mb-3">
+        <Link href="/" className="text-sm text-white/70 hover:text-white transition">← Workout</Link>
+      </div>
 
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
@@ -178,10 +173,7 @@ export default function Page() {
             const armed = armedId === w.id;
 
             return (
-              <li
-                key={w.id}
-                className="p-3 rounded-xl border border-white/20 flex items-center justify-between"
-              >
+              <li key={w.id} className="p-3 rounded-xl border border-white/20 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {manageMode && (
                     <input
@@ -203,16 +195,11 @@ export default function Page() {
                 <div className="flex items-center gap-3 overflow-x-auto whitespace-nowrap [-webkit-overflow-scrolling:touch] pl-1">
                   {!manageMode ? (
                     <>
-                      <Link
-                        href={`/hiit/edit?wid=${encodeURIComponent(w.id)}`}
-                        className="shrink-0 text-sm underline"
-                      >
+                      <Link href={`/hiit/edit?wid=${encodeURIComponent(w.id)}`} className="shrink-0 text-sm underline">
                         編輯
                       </Link>
-                      <Link
-                        href={`/hiit/play?wid=${encodeURIComponent(w.id)}`}
-                        className="shrink-0 text-sm underline"
-                      >
+                      {/* 開始 → 先到預覽 */}
+                      <Link href={`/hiit/preview?wid=${encodeURIComponent(w.id)}`} className="shrink-0 text-sm underline">
                         開始
                       </Link>
                       <button

@@ -22,6 +22,20 @@ const nextConfig: any = {
 
   // 在正式環境才移除 console（保留 error/warn）
   compiler: isProd ? { removeConsole: { exclude: ["error", "warn"] } } : {},
+
+  // 🧾 開發/預覽環境也加上靜態資源快取（正式若用靜態主機，請同步把對應規則寫進 public/_headers）
+  async headers() {
+    return [
+      {
+        source: "/hiit/media/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+          // 一些裝置會靠這個 MIME 才走硬體解碼
+          { key: "Content-Type", value: "video/webm" },
+        ],
+      },
+    ];
+  },
 };
 
 // ⚠️ dev 區網白名單（只在非 prod 生效）
@@ -38,9 +52,8 @@ if (!isProd) {
     nextConfig.rewrites = async () => [
       {
         source: "/api/hiit/:path*",
-        destination: "http://localhost:8000/api/hiit/:path*", // 你的 FastAPI/uvicorn
+        destination: "http://localhost:8000/api/hiit/:path*",
       },
-      // 如需其他既有 API 一起代理，可在這裡繼續加
     ];
   }
 }

@@ -8,10 +8,12 @@ export function computeStepMs(s: {
   const rounds = s.rounds ?? 1;
   const sets = s.sets ?? 1;
   const interSet = s.inter_set_rest_sec ?? 0;
+
   const perRound = (work + rest) * 1000;
-  const perSet = perRound * rounds;
+  const perSet = perRound * Math.max(1, rounds);
   const interSetTotal = Math.max(0, sets - 1) * interSet * 1000;
-  return perSet * sets + interSetTotal;
+
+  return Math.max(1, sets) * perSet + interSetTotal;
 }
 
 export function computeWorkoutMs(w: {

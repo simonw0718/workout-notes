@@ -1,4 +1,4 @@
-// 路徑：/lib/hiit/api.ts
+// /lib/hiit/api.ts
 /**
  * HIIT API client（前端）
  * - 會優先讀環境變數 NEXT_PUBLIC_HIIT_API_BASE
@@ -16,7 +16,6 @@ function inferBase(): string {
   // 2) 瀏覽器端 → 用當前 hostname 配 8000
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname; // 例：localhost、192.168.x.x、10.x.x.x
-    // 後端大多跑 http；若你真的用 https，自己把 8000 換成你的 port
     const proto = window.location.protocol === 'https:' ? 'https:' : 'http:';
     return `${proto}//${hostname}:8000`;
   }
@@ -35,15 +34,9 @@ async function j(input: RequestInfo | URL, init?: RequestInit, timeoutMs = 12000
     const r = await fetch(input, { signal: controller.signal, ...init });
     const text = await r.text().catch(() => '');
 
-    if (!r.ok) {
-      throw new Error(`[HIIT API] ${r.status} ${r.statusText} ${text}`.trim());
-    }
+    if (!r.ok) throw new Error(`[HIIT API] ${r.status} ${r.statusText} ${text}`.trim());
     if (r.status === 204 || text === '') return { ok: true };
-    try {
-      return JSON.parse(text);
-    } catch {
-      return { ok: true, text };
-    }
+    try { return JSON.parse(text); } catch { return { ok: true, text }; }
   } finally {
     clearTimeout(t);
   }
@@ -57,10 +50,10 @@ export type HiitExerciseDto = {
   id?: string;
   name: string;
   primaryCategory: 'cardio' | 'lower' | 'upper' | 'core' | 'full';
-  defaultValue: number;          // 預設秒數
+  defaultValue: number;
   movementType: string[];
   trainingGoal: string[];
-  equipment: string;             // 單選
+  equipment: string;
   bodyPart: string[];
   cue?: string | null;
   coachNote?: string | null;
@@ -74,7 +67,6 @@ type ListExerciseParams = {
   equipment?: string;
   bodyPart?: string;
   goal?: string;
-  /** no(預設)=只回未刪、only=只回已刪、with=全部 */
   status?: 'no' | 'only' | 'with';
   limit?: number;
   offset?: number;
@@ -97,11 +89,9 @@ export async function createExercise(payload: Omit<HiitExerciseDto, 'id' | 'dele
     body: JSON.stringify(payload),
   });
 }
-
 export async function getExercise(id: string) {
   return j(`${BASE}/api/hiit/exercises/${encodeURIComponent(id)}`);
 }
-
 export async function updateExercise(id: string, payload: Partial<HiitExerciseDto>) {
   return j(`${BASE}/api/hiit/exercises/${encodeURIComponent(id)}`, {
     method: 'PUT',
@@ -109,14 +99,11 @@ export async function updateExercise(id: string, payload: Partial<HiitExerciseDt
     body: JSON.stringify(payload),
   });
 }
-
 export async function deleteExercise(id: string, hard = false) {
   const url = new URL(`/api/hiit/exercises/${encodeURIComponent(id)}`, BASE);
   if (hard) url.searchParams.set('hard', 'true');
-  return j(url.toString(), { method: 'DELETE' }); // 空 body/204 也會回 { ok:true }
+  return j(url.toString(), { method: 'DELETE' });
 }
-
-/** 還原軟刪的動作 */
 export async function restoreExercise(id: string) {
   return j(`${BASE}/api/hiit/exercises/${encodeURIComponent(id)}/restore`, {
     method: 'POST',
@@ -130,11 +117,9 @@ export async function restoreExercise(id: string) {
 export async function listWorkouts() {
   return j(`${BASE}/api/hiit/workouts`);
 }
-
 export async function getWorkout(id: string) {
   return j(`${BASE}/api/hiit/workouts/${encodeURIComponent(id)}`);
 }
-
 export async function createWorkout(payload: {
   name: string;
   warmup_sec: number;
@@ -155,7 +140,6 @@ export async function createWorkout(payload: {
     body: JSON.stringify(payload),
   });
 }
-
 export async function updateWorkout(
   id: string,
   payload: {
@@ -179,9 +163,8 @@ export async function updateWorkout(
     body: JSON.stringify(payload),
   });
 }
-
 export async function deleteWorkout(id: string, hard = false) {
   const url = new URL(`/api/hiit/workouts/${encodeURIComponent(id)}`, BASE);
   if (hard) url.searchParams.set('hard', 'true');
-  return j(url.toString(), { method: 'DELETE' }); // 安全處理 204/空 body
+  return j(url.toString(), { method: 'DELETE' });
 }

@@ -106,7 +106,8 @@ export default function EditHiit() {
     setBusy(true);
     try {
       await updateWorkout(wid, buildPayload());
-      location.href = `/hiit/play?wid=${encodeURIComponent(wid)}`;
+      // 儲存後改導向到「預覽」再開始
+      location.href = `/hiit/preview?wid=${encodeURIComponent(wid)}`;
     } catch (e: any) {
       alert(`儲存失敗：${e?.message ?? e}`);
     } finally {
@@ -167,7 +168,7 @@ export default function EditHiit() {
           <div className="text-sm mb-1 text-white/80">Cooldown 秒</div>
           <input
             type="number"
-            className="border rounded-xl px-3 py-2 w-full bg黑 text-white border-white/20"
+            className="border rounded-xl px-3 py-2 w-full bg-black text-white border-white/20"
             value={cooldown}
             min={0}
             onChange={(e)=>setCooldown(clamp0(e.target.value))}
@@ -182,7 +183,7 @@ export default function EditHiit() {
           {busy ? '儲存中…' : '儲存變更'}
         </button>
         <button onClick={handleSaveAndPlay} disabled={busy} className="shrink-0 px-4 py-2 rounded-xl border border-white">
-          {busy ? '儲存中…' : '儲存並播放'}
+          {busy ? '儲存中…' : '儲存並預覽'}
         </button>
       </div>
     </div>
