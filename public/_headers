@@ -26,7 +26,6 @@
   Cache-Control: public, max-age=31536000, immutable
 
 /hiit/media/*
-  # 只做快取，不變更 MIME
+  # 只做快取，不更動檔案的原生 MIME（.mp4 / .webm 依檔案自帶）
   Cache-Control: public, max-age=31536000, immutable
-  #（可選）讓瀏覽器性能面板可見跨網域計時
   Timing-Allow-Origin: *

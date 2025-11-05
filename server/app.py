@@ -24,23 +24,29 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Workout Notes Sync API")
 
-# ---- CORS 設定：允許本機、Cloudflare Pages 與常見私網段 ----
+# ---- CORS 設定 ----
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:3100",
     "http://127.0.0.1:3100",
-    "https://workout-notes.pages.dev",   # ← 新增 Cloudflare Pages
-    # 若有自訂網域，亦可加入：
-    # "https://your-domain.example.com",
+
+    # ✅ 你的正式前端（如果已知固定網域可直接寫死）
+    "https://workout-notes.pages.dev",
+    # 若有自訂網域，例：
+    # "https://notes.your-domain.com",
 ]
-# 允許常見私網段（http/https、任意 port）
-PRIVATE_NET_REGEX = r"https?://(192\.168|10\.\d{1,3}|172\.(1[6-9]|2[0-9]|3[0-1]))\.\d{1,3}\.\d{1,3}(:\d+)?"
+
+# 私網段（任意 port）
+PRIVATE_NET_REGEX = r"http://(192\.168|10\.\d{1,3}|172\.(1[6-9]|2[0-9]|3[0-1]))\.\d{1,3}\.\d{1,3}(:\d+)?"
+
+# ✅ Pages 的臨時部署域，如 6708ccb7.workout-notes.pages.dev
+PAGES_DEPLOY_REGEX = r"https://[a-z0-9\-]+\.workout-notes\.pages\.dev"
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=PRIVATE_NET_REGEX,
+    allow_origin_regex=f"(?:{PRIVATE_NET_REGEX})|(?:{PAGES_DEPLOY_REGEX})",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
