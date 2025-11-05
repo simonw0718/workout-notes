@@ -8,6 +8,8 @@ import BackButton from '@/components/BackButton';
 import { buildTimeline, type TimelineItem } from '@/lib/hiit/timeline';
 import { getWorkout } from '@/lib/hiit/api';
 import { speak, isTtsEnabled, setTtsEnabled, cancelSpeak, primeTTS } from '@/lib/hiit/tts';
+import { listHiitExercises } from '@/lib/hiit/api';
+
 
 function PlayInner() {
   const sp = useSearchParams();
@@ -63,12 +65,13 @@ function PlayInner() {
     let abort = false;
     (async () => {
       try {
-        const res = await fetch(`/api/hiit/exercises?q=${encodeURIComponent(label)}&limit=1`);
-        if (!res.ok) throw new Error('fetch exercises failed');
-        const arr = (await res.json()) as Array<{ name: string; cue?: string }>;
-        if (!abort) setCueText(arr?.[0]?.cue || '');
-      } catch { if (!abort) setCueText(''); }
+        const arr = await listHiitExercises({ q: label, limit: 1, status: 'no' });
+        if (!abort) setCueText(Array.isArray(arr) && arr[0]?.cue ? arr[0].cue : '');
+      } catch {
+        if (!abort) setCueText('');
+      }
     })();
+
     return () => { abort = true; };
   }, [timeline, idx]);
 
