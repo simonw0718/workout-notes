@@ -24,15 +24,18 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Workout Notes Sync API")
 
-# ---- CORS 設定：允許本機與區網（192.168.*.* / 10.*.*.* / 172.16-31.*.*）----
+# ---- CORS 設定：允許本機、Cloudflare Pages 與常見私網段 ----
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:3100",
     "http://127.0.0.1:3100",
+    "https://workout-notes.pages.dev",   # ← 新增 Cloudflare Pages
+    # 若有自訂網域，亦可加入：
+    # "https://your-domain.example.com",
 ]
-# 允許常見私網段（含任意 port）
-PRIVATE_NET_REGEX = r"http://(192\.168|10\.\d{1,3}|172\.(1[6-9]|2[0-9]|3[0-1]))\.\d{1,3}\.\d{1,3}(:\d+)?"
+# 允許常見私網段（http/https、任意 port）
+PRIVATE_NET_REGEX = r"https?://(192\.168|10\.\d{1,3}|172\.(1[6-9]|2[0-9]|3[0-1]))\.\d{1,3}\.\d{1,3}(:\d+)?"
 
 app.add_middleware(
     CORSMiddleware,
