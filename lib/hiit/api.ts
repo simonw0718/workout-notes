@@ -90,22 +90,92 @@ function getDB() {
 
 /* ---------------------------- 首次載入 seed ---------------------------- */
 const SEED_VERSION = 1;
+
+async function sleep(ms:number){ return new Promise(r=>setTimeout(r, ms)); }
+
+/** 依「英文主標」做 normalize，避免大小寫/空白差異 */
+function normName(s: string) {
+  const head = String(s || '').split('\n')[0] || '';
+  return head.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/** 去重：同名（normalize 後）只保留最新一筆 */
+async function dedupeByName() {
+  const db = await getDB();
+  const all = await db.getAll('hiit_exercises');
+  if (!all?.length) return;
+  const byKey = new Map<string, { keep: any; dups: any[] }>();
+
+  for (const row of all) {
+    const key = normName(row.name);
+    const bucket = byKey.get(key) ?? { keep: null as any, dups: [] as any[] };
+    // 保留 updatedAt 較新的那筆
+    if (!bucket.keep || row.updatedAt > bucket.keep.updatedAt) {
+      if (bucket.keep) bucket.dups.push(bucket.keep);
+      bucket.keep = row;
+    } else {
+      bucket.dups.push(row);
+    }
+    byKey.set(key, bucket);
+  }
+
+  const dels = Array.from(byKey.values()).flatMap(b => b.dups);
+  if (!dels.length) return;
+
+  const tx = db.transaction('hiit_exercises', 'readwrite');
+  for (const d of dels) await tx.store.delete(d.id);
+  await tx.done;
+}
+
+/** 首次載入 seed（含鎖機制防止競態），並在最後做一次去重 */
 async function ensureSeeded() {
   const db = await getDB();
-  const meta = (await db.get('hiit_meta', 'app')) || { id: 'app', seeded_v: 0 };
-  if ((meta.seeded_v ?? 0) >= SEED_VERSION) return;
 
-  // 先嘗試從 public 路徑讀；若路徑不存在，靜默略過
+  // 1) 嘗試取得/建立 meta
+  let meta = (await db.get('hiit_meta', 'app')) as { id:'app'; seeded_v:number } | undefined;
+  if (!meta) {
+    meta = { id: 'app', seeded_v: 0 };
+    await db.put('hiit_meta', meta);
+  }
+
+  // 2) 已是最新就直接退出
+  if ((meta.seeded_v ?? 0) >= SEED_VERSION) {
+    return;
+  }
+
+  // 3) 若看到「別人正在 seed」（-1），就等待它完成
+  if (meta.seeded_v === -1) {
+    for (let i = 0; i < 40; i++) { // 最多等 4 秒
+      await sleep(100);
+      const m2 = await db.get('hiit_meta', 'app');
+      if (m2 && (m2 as any).seeded_v !== -1) return;
+    }
+    // 超時就繼續由自己處理（降級）
+  } else {
+    // 4) 嘗試「佔鎖」：把 seeded_v 設為 -1（表示正在 seeding）
+    await db.put('hiit_meta', { id: 'app', seeded_v: -1 });
+  }
+
+  // 5) 真正執行 seeding（用 name 防重覆 put）
   try {
     const res = await fetch('/hiit/seed_exercises.json', { cache: 'no-cache' });
     if (res.ok) {
       const list = (await res.json()) as any[];
       const tx = db.transaction('hiit_exercises', 'readwrite');
+      const idxByName = tx.store.index('by_name');
+
       for (const raw of list ?? []) {
-        const id = safeUUID();
-        const row: HiitExerciseDto & { id: string; updatedAt: number } = {
-          id,
-          name: raw.name?.trim() ?? 'Exercise',
+        const name = String(raw.name ?? '').trim();
+        if (!name) continue;
+
+        // 若已存在同名（normalize 後）就略過。這裡用 index 精準比對原始 name，
+        // 並搭配最後的 dedupeByName() 作雙保險。
+        const existed = await idxByName.getAll(name);
+        if (Array.isArray(existed) && existed.length > 0) continue;
+
+        await tx.store.add({
+          id: safeUUID(),
+          name,
           primaryCategory: raw.primaryCategory ?? 'full',
           defaultMode: raw.defaultMode ?? 'time',
           defaultValue: Number(raw.defaultValue ?? 30),
@@ -118,16 +188,16 @@ async function ensureSeeded() {
           isBilateral: !!raw.isBilateral,
           deletedAt: null,
           updatedAt: Date.now(),
-        };
-        await tx.store.add(row);
+        });
       }
       await tx.done;
     }
-  } catch {
-    // 不擋 UI
+  } finally {
+    // 6) 解除鎖並升級版本
+    await db.put('hiit_meta', { id: 'app', seeded_v: SEED_VERSION });
+    // 7) 做一次去重（保留 updatedAt 最新）
+    await dedupeByName();
   }
-
-  await db.put('hiit_meta', { id: 'app', seeded_v: SEED_VERSION });
 }
 
 /* ============================= Exercises ============================= */
