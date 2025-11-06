@@ -101,7 +101,7 @@ export default function Page() {
     <div className="p-4 text-white">
       {/* 第一列：標題置中 + 右側返回 Workout（同一行） */}
       <div className="relative mb-3">
-        <h1 className="text-2xl font-semibold font-title absolute left-1/2 -translate-x-1/2">HIIT</h1>
+        <h1 className="text-2xl font-semibold font-title absolute left-1/2 -translate-x-1/2 mb-3">HIIT</h1>
         <div className="flex justify-end">
           <Link href="/" className="text-sm text-white/70 hover:text-white transition">← Workout</Link>
         </div>

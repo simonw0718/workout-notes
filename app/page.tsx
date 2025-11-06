@@ -404,7 +404,7 @@ export default function Home() {
           href="/hiit"
           className="inline-block px-4 py-2 rounded-xl border border-white text-white bg-black hover:opacity-80"
         >
-          🚀 前往 HIIT 測試頁
+          🚀 前往 HIIT
         </Link>
       </div>
       {/* --- 之後上線時可刪除 --- */}
