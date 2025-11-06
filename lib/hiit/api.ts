@@ -109,7 +109,6 @@ async function dedupeByName() {
   for (const row of all) {
     const key = normName(row.name);
     const bucket = byKey.get(key) ?? { keep: null as any, dups: [] as any[] };
-    // 保留 updatedAt 較新的那筆
     if (!bucket.keep || row.updatedAt > bucket.keep.updatedAt) {
       if (bucket.keep) bucket.dups.push(bucket.keep);
       bucket.keep = row;
@@ -152,11 +151,11 @@ async function ensureSeeded() {
     }
     // 超時就繼續由自己處理（降級）
   } else {
-    // 4) 嘗試「佔鎖」：把 seeded_v 設為 -1（表示正在 seeding）
+    // 4) 嘗試「佔鎖」
     await db.put('hiit_meta', { id: 'app', seeded_v: -1 });
   }
 
-  // 5) 真正執行 seeding（用 name 防重覆 put）
+  // 5) 真正執行 seeding
   try {
     const res = await fetch('/hiit/seed_exercises.json', { cache: 'no-cache' });
     if (res.ok) {
@@ -167,9 +166,6 @@ async function ensureSeeded() {
       for (const raw of list ?? []) {
         const name = String(raw.name ?? '').trim();
         if (!name) continue;
-
-        // 若已存在同名（normalize 後）就略過。這裡用 index 精準比對原始 name，
-        // 並搭配最後的 dedupeByName() 作雙保險。
         const existed = await idxByName.getAll(name);
         if (Array.isArray(existed) && existed.length > 0) continue;
 
@@ -195,9 +191,35 @@ async function ensureSeeded() {
   } finally {
     // 6) 解除鎖並升級版本
     await db.put('hiit_meta', { id: 'app', seeded_v: SEED_VERSION });
-    // 7) 做一次去重（保留 updatedAt 最新）
+    // 7) 去重
     await dedupeByName();
   }
+}
+
+/**
+ * 手動重新載入 seed：
+ * - clearExisting=false（預設）→ 合併匯入，不清空現有自訂，避免重複。
+ * - clearExisting=true → 先清空 hiit_exercises 再匯入預設。
+ * 備註：會把 seeded_v 重設為 0，確保 ensureSeeded 會執行。
+ */
+export async function reloadSeedExercises(opts?: { clearExisting?: boolean }): Promise<{ added: number; total: number }> {
+  const { clearExisting = false } = opts ?? {};
+  const db = await getDB();
+
+  const before = await db.count('hiit_exercises');
+
+  const tx = db.transaction(['hiit_meta', 'hiit_exercises'], 'readwrite');
+  if (clearExisting) {
+    await tx.objectStore('hiit_exercises').clear();
+  }
+  await tx.objectStore('hiit_meta').put({ id: 'app', seeded_v: 0 });
+  await tx.done;
+
+  await ensureSeeded();
+
+  const after = await db.count('hiit_exercises');
+  const added = after - (clearExisting ? 0 : before);
+  return { added, total: after };
 }
 
 /* ============================= Exercises ============================= */
