@@ -3,22 +3,22 @@
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import RingCountdown from '@/components/hiit/RingCountdown';
 import PlayerHUD from '@/components/hiit/PlayerHUD';
 import BackButton from '@/components/BackButton';
 import { buildTimeline, type TimelineItem } from '@/lib/hiit/timeline';
-import { getWorkout } from '@/lib/hiit/api';
+import { getWorkout, createHistory, type HiitWorkoutDto } from '@/lib/hiit/api';
 import { speak, isTtsEnabled, setTtsEnabled, cancelSpeak, primeTTS } from '@/lib/hiit/tts';
 import { listHiitExercises } from '@/lib/hiit/api';
 
-
 function PlayInner() {
   const sp = useSearchParams();
+  const router = useRouter();
   const wid = sp.get('wid') || '';
 
   // ── state ───────────────────────────────────────────────────────────────────
-  const [workout, setWorkout] = useState<any | null>(null);
+  const [workout, setWorkout] = useState<HiitWorkoutDto | null>(null);
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [idx, setIdx] = useState(0);
   const [msLeft, setMsLeft] = useState(0);
@@ -28,10 +28,6 @@ function PlayInner() {
   const [ttsOn, setTtsOn] = useState(isTtsEnabled());
   const [voicesReady, setVoicesReady] = useState(false);
   const [ttsPrimed, setTtsPrimed] = useState(false);
-
-  // iOS: 顏色直接指定
-  const colorOf = (k: TimelineItem['kind']) =>
-    k === 'work' ? '#f43f5e' : k === 'rest' || k === 'interset' ? '#22d3ee' : k === 'warmup' ? '#facc15' : '#9ca3af';
 
   // 目前步驟的提示（cue）
   const [cueText, setCueText] = useState<string>('');
@@ -43,6 +39,11 @@ function PlayInner() {
   const raf = useRef<number | null>(null);
   const beepCtx = useRef<AudioContext | null>(null);
 
+  // ====== 歷史紀錄：開始/結束/保護旗標 ======
+  const startedAtRef = useRef<number | null>(null);
+  const finishedRef = useRef(false);
+  const savingRef = useRef(false);
+
   // ── 資料載入（方案） ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!wid) return;
@@ -51,9 +52,11 @@ function PlayInner() {
       const w = await getWorkout(wid);
       if (!alive) return;
       setWorkout(w);
-      setTimeline(buildTimeline(w));
+      const tl = buildTimeline(w);
+      setTimeline(tl);
       setIdx(0);
       setMsLeft(0);
+      startedAtRef.current = Date.now();
     })().catch(console.error);
     return () => { alive = false; };
   }, [wid]);
@@ -210,8 +213,15 @@ function PlayInner() {
           duration = timeline[idx + 1]?.ms ?? 0;
           raf.current = requestAnimationFrame(loop);
         } else {
+          // 完成
           if (raf.current !== null) cancelAnimationFrame(raf.current);
           raf.current = null;
+          void safeSaveHistory('completed');
+          finishedRef.current = true;
+          // 完成後 1 秒自動返回上一頁（保留簡單體驗）
+          setTimeout(() => {
+            try { router.back(); } catch {}
+          }, 1000);
         }
       } else {
         raf.current = requestAnimationFrame(loop);
@@ -221,7 +231,63 @@ function PlayInner() {
     setMsLeft(duration);
     raf.current = requestAnimationFrame(loop);
     return () => { if (raf.current !== null) cancelAnimationFrame(raf.current); raf.current = null; };
-  }, [timeline, idx, paused]);
+  }, [timeline, idx, paused, router]);
+
+  // ── 離開頁面：若尚未完成，記錄為 interrupted ────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (!finishedRef.current) {
+        void safeSaveHistory('interrupted');
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function safeSaveHistory(status: 'completed' | 'interrupted') {
+    if (!workout || savingRef.current) return;
+    savingRef.current = true;
+    try {
+      const startedAt = startedAtRef.current ?? Date.now();
+      const endedAt = Date.now();
+
+      // 粗略統計（依目前 timeline）
+      let totalWorkMs = 0;
+      let totalRestMs = 0;
+      for (const it of timeline) {
+        if (it.kind === 'work') totalWorkMs += it.ms;
+        else if (it.kind === 'rest' || it.kind === 'interset' || it.kind === 'warmup' || it.kind === 'cooldown') {
+          totalRestMs += it.ms;
+        }
+      }
+
+      await createHistory({
+        workoutId: workout.id,
+        workoutName: workout.name,
+        startedAt,
+        endedAt,
+        status,
+        totalWorkSec: Math.round(totalWorkMs / 1000),
+        totalRestSec: Math.round(totalRestMs / 1000),
+        roundsDone: workout.steps?.reduce((acc, s) => acc + (s.rounds ?? 1), 0) ?? null,
+        setsDone: workout.steps?.reduce((acc, s) => acc + (s.sets ?? 1), 0) ?? null,
+        skippedSteps: null,
+        notes: null,
+        snapshot: {
+          name: workout.name,
+          description: workout.description,
+          warmup_sec: workout.warmup_sec,
+          cooldown_sec: workout.cooldown_sec,
+          steps: workout.steps,
+        },
+        deletedAt: null,
+      });
+    } catch (e) {
+      // 不打擾使用者；console 記錄即可
+      console.error('[history] save failed:', e);
+    } finally {
+      savingRef.current = false;
+    }
+  }
 
   // ── guard 畫面 ─────────────────────────────────────────────────────────────
   if (!wid) {
@@ -275,7 +341,7 @@ function PlayInner() {
     <div className="p-6 flex flex-col items-center text-white relative">
       <div className="self-start mb-2 flex items-center gap-2 w-full">
         <BackButton />
-        <div className="ml-auto flex items中心 gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <label className="text-sm opacity-80">語音播報</label>
           <button
             onClick={() => {
@@ -297,7 +363,7 @@ function PlayInner() {
       <PlayerHUD title={title} subtitle={workout?.name || cur.label} />
 
       {/* 圓環：中間放下一個 + 倒數秒數 */}
-      <RingCountdown progress={progress} size={240} stroke={16} color={colorOf(cur.kind)}>
+      <RingCountdown progress={progress} size={240} stroke={16} color={cur.kind === 'work' ? '#f43f5e' : (cur.kind === 'rest' || cur.kind === 'interset') ? '#22d3ee' : cur.kind === 'warmup' ? '#facc15' : '#9ca3af'}>
         <div className="flex flex-col items-center justify-center leading-tight">
           <div className="text-[11px] sm:text-xs opacity-75">{nextText}</div>
           <div className="text-5xl sm:text-6xl font-semibold tabular-nums mt-1">{secondsLeft}s</div>

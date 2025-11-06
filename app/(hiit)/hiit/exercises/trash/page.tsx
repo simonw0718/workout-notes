@@ -55,7 +55,7 @@ export default function TrashExercisesPage() {
       <div className="mb-3"><BackButton /></div>
 
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">回收桶</h1>
+        <h1 className="text-2xl font-semibold font-title text-center">回收桶</h1>
         <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
           <button onClick={onRestoreClick} disabled={busy || sel.size === 0}
             className={`inline-flex px-2 py-1 md:px-3 md:py-2 rounded-lg md:rounded-xl border text-sm md:text-base ${

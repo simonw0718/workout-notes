@@ -1,4 +1,3 @@
-/* globals.css */
 @import "tailwindcss";
 
 /* App 的主色系（用原本你的變數） */
@@ -43,6 +42,11 @@ html, body {
 /* placeholder 也要白色 */
 ::placeholder { color: #aaa !important; }
 
+/* === 標題字體（Oswald）=== */
+.font-title {
+  font-family: var(--font-title), system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans TC", "PingFang TC", "Heiti TC", Arial, sans-serif;
+}
+
 /* === Timer finished flash (3s) === */
 @keyframes wn-flash-bg {
   0%, 100% { background-color: inherit; }
@@ -52,12 +56,12 @@ html, body {
   animation: wn-flash-bg 0.5s ease-in-out 6; /* 0.5s * 6 = 3s */
 }
 
+/* 動畫 */
 @keyframes slideUp { from { transform: translateY(12px); opacity: .9; } to { transform: translateY(0); opacity: 1; } }
 
 /* 抽屜內容只讓自己滾，不外溢 */
-.overscroll-contain {
-  overscroll-behavior: contain;
-}
+.overscroll-contain { overscroll-behavior: contain; }
+
 @keyframes slideUp {
   from { transform: translateY(12px); opacity: .9; }
   to   { transform: translateY(0);    opacity: 1; }

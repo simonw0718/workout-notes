@@ -144,7 +144,7 @@ function EditHiitInner() {
         </button>
       </div>
 
-      <h1 className="text-xl font-semibold">編輯 HIIT</h1>
+      <h1 className="text-xl font-semibold font-title text-center">編輯 HIIT</h1>
 
       <div className="text-sm opacity-80">總時長：{totalText}</div>
 

@@ -9,6 +9,7 @@ export type TimelineItem = {
   round: number;
 };
 
+// （保留舊函式，僅微調型別標註）
 export function buildTimeline(steps: any[], warmupSec=0, cooldownSec=0): TimelineItem[] {
   const tl: TimelineItem[] = [];
   if (warmupSec>0) tl.push({phase:'prepare', ms:warmupSec*1000, label:'Warmup', stepIndex:-1, round:0});

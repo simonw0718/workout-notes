@@ -41,6 +41,31 @@ export type HiitWorkoutDto = {
   updatedAt?: number;
 };
 
+// ===== 新增：HIIT 歷史紀錄 =====
+export type HiitHistoryDto = {
+  id: string;
+  workoutId: string;
+  workoutName: string;
+  startedAt: number;
+  endedAt: number | null;
+  status: 'completed' | 'interrupted';
+  totalWorkSec: number;
+  totalRestSec: number;
+  roundsDone?: number | null;
+  setsDone?: number | null;
+  skippedSteps?: string[] | null;
+  notes?: string | null;
+  snapshot: {
+    name: string;
+    description?: string;
+    warmup_sec: number;
+    cooldown_sec: number;
+    steps: HiitWorkoutDto['steps'];
+  };
+  deletedAt?: string | null;
+  updatedAt: number;
+};
+
 type DB = IDBPDatabase<{
   hiit_exercises: {
     key: string;
@@ -52,6 +77,11 @@ type DB = IDBPDatabase<{
     value: HiitWorkoutDto & { id: string; updatedAt: number };
     indexes: { by_deleted: string; by_updated: number; by_name: string };
   };
+  hiit_history: {
+    key: string;
+    value: HiitHistoryDto;
+    indexes: { by_deleted: string; by_ended: number; by_workout: string; by_updated: number };
+  };
   hiit_meta: {
     key: string;
     value: { id: string; seeded_v: number };
@@ -59,13 +89,14 @@ type DB = IDBPDatabase<{
 }>;
 
 const DB_NAME = 'workout-notes-hiit';
-const DB_VER = 1;
+// ⚠️ 升版：新增 hiit_history
+const DB_VER = 2;
 
 let _dbp: Promise<DB> | null = null;
 function getDB() {
   if (!_dbp) {
     _dbp = openDB(DB_NAME, DB_VER, {
-      upgrade(db) {
+      upgrade(db, oldVersion) {
         if (!db.objectStoreNames.contains('hiit_exercises')) {
           const s = db.createObjectStore('hiit_exercises', { keyPath: 'id' });
           s.createIndex('by_deleted', 'deletedAt');
@@ -81,6 +112,14 @@ function getDB() {
         }
         if (!db.objectStoreNames.contains('hiit_meta')) {
           db.createObjectStore('hiit_meta', { keyPath: 'id' });
+        }
+        // v2：歷史紀錄 store
+        if (oldVersion < 2) {
+          const s = db.createObjectStore('hiit_history', { keyPath: 'id' });
+          s.createIndex('by_deleted', 'deletedAt');
+          s.createIndex('by_ended', 'endedAt');
+          s.createIndex('by_workout', 'workoutId');
+          s.createIndex('by_updated', 'updatedAt');
         }
       },
     }) as any;
@@ -149,7 +188,6 @@ async function ensureSeeded() {
       const m2 = await db.get('hiit_meta', 'app');
       if (m2 && (m2 as any).seeded_v !== -1) return;
     }
-    // 超時就繼續由自己處理（降級）
   } else {
     // 4) 嘗試「佔鎖」
     await db.put('hiit_meta', { id: 'app', seeded_v: -1 });
@@ -357,4 +395,89 @@ export async function deleteWorkout(id: string, hard = false) {
     if (!cur) return;
     await db.put('hiit_workouts', { ...cur, deletedAt: new Date().toISOString(), updatedAt: Date.now() });
   }
+}
+
+/* ============================== History ============================== */
+
+export async function createHistory(input: Omit<HiitHistoryDto, 'id' | 'updatedAt'>) {
+  const db = await getDB();
+  const row: HiitHistoryDto = {
+    ...input,
+    id: safeUUID(),
+    updatedAt: Date.now(),
+  };
+  await db.add('hiit_history', row);
+  return row;
+}
+
+export async function updateHistory(id: string, patch: Partial<Omit<HiitHistoryDto, 'id'>>) {
+  const db = await getDB();
+  const cur = await db.get('hiit_history', id);
+  if (!cur) throw new Error('not found');
+  const next: HiitHistoryDto = { ...cur, ...patch, id, updatedAt: Date.now() };
+  await db.put('hiit_history', next);
+  return next;
+}
+
+export async function getHistory(id: string) {
+  const db = await getDB();
+  const it = await db.get('hiit_history', id);
+  if (!it || it.deletedAt) throw new Error('not found');
+  return it;
+}
+
+export async function listHistory(opts?: {
+  q?: string;
+  workoutId?: string;
+  status?: 'no' | 'only' | 'all';
+  limit?: number;
+  offset?: number;
+  sort?: 'endedAt_desc' | 'endedAt_asc' | 'updated_desc';
+}) {
+  const db = await getDB();
+  const { q, workoutId, status = 'no', limit = 50, offset = 0, sort = 'endedAt_desc' } = opts ?? {};
+  let rows = await db.getAll('hiit_history');
+
+  if (status === 'no')   rows = rows.filter(x => !x.deletedAt);
+  if (status === 'only') rows = rows.filter(x => !!x.deletedAt);
+  if (workoutId)         rows = rows.filter(x => x.workoutId === workoutId);
+  if (q && q.trim()) {
+    const k = q.trim().toLowerCase();
+    rows = rows.filter(x =>
+      x.workoutName.toLowerCase().includes(k) ||
+      (x.notes ?? '').toLowerCase().includes(k)
+    );
+  }
+
+  rows.sort((a,b) => {
+    if (sort === 'endedAt_asc')  return (a.endedAt ?? 0) - (b.endedAt ?? 0);
+    if (sort === 'updated_desc') return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+    // default desc by endedAt
+    return (b.endedAt ?? 0) - (a.endedAt ?? 0);
+  });
+
+  return rows.slice(offset, offset + limit);
+}
+
+export async function deleteHistory(id: string, hard = false) {
+  const db = await getDB();
+  if (hard) {
+    await db.delete('hiit_history', id);
+    return;
+  }
+  const cur = await db.get('hiit_history', id);
+  if (!cur) return;
+  await db.put('hiit_history', { ...cur, deletedAt: new Date().toISOString(), updatedAt: Date.now() });
+}
+
+export async function restoreHistory(id: string) {
+  const db = await getDB();
+  const cur = await db.get('hiit_history', id);
+  if (!cur) return;
+  await db.put('hiit_history', { ...cur, deletedAt: null, updatedAt: Date.now() });
+}
+
+export async function clearAllHistory() {
+  const db = await getDB();
+  await db.clear('hiit_history');
 }

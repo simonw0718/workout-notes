@@ -11,7 +11,7 @@ export default function NewExercise() {
   return (
     <div className="p-4 text-white space-y-4">
       <div className="mb-2"><BackButton/></div>
-      <h1 className="text-xl font-semibold">新增動作</h1>
+      <h1 className="text-xl font-semibold font-title text-center">新增動作</h1>
       <ExerciseForm busy={busy} onSubmit={async (v)=>{
         setBusy(true);
         try {

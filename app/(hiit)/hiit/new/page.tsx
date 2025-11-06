@@ -34,14 +34,14 @@ export default function New() {
       cooldown_sec: cooldown,
       steps: mapSteps(),
     };
-    return formatHMS(computeWorkoutMs(dto));
+    return formatHMS(computeWorkoutMs(dto as any));
   }, [warmup, cooldown, steps]);
 
   async function saveOnly() {
     setBusy(true);
     try {
       const payload = { name, warmup_sec: warmup, cooldown_sec: cooldown, steps: mapSteps() };
-      const w = await createWorkout(payload);
+      const w = await createWorkout(payload as any);
       if (!w?.id) throw new Error('API 沒回 id');
       setSavedId(w.id);
       alert('已儲存');
@@ -52,24 +52,10 @@ export default function New() {
     }
   }
 
-  async function saveAndStart() {
-    setBusy(true);
-    try {
-      const payload = { name, warmup_sec: warmup, cooldown_sec: cooldown, steps: mapSteps() };
-      const w = await createWorkout(payload);
-      if (!w?.id) throw new Error('API 沒回 id');
-      location.href = `/hiit/play?wid=${encodeURIComponent(w.id)}`;
-    } catch (e:any) {
-      alert(`儲存失敗：${e?.message ?? e}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className="p-4 space-y-4 text-white">
       <div className="mb-2"><BackButton /></div>
-      <h1 className="text-xl font-semibold">新建 HIIT</h1>
+      <h1 className="text-xl font-semibold font-title text-center">新建 HIIT</h1>
 
       {/* 總時長 */}
       <div className="text-sm opacity-80">總時長：{totalText}</div>
@@ -77,7 +63,7 @@ export default function New() {
       <div className="space-y-2">
         <label className="block text-sm text-white/80">名稱</label>
         <input
-          className="border rounded-xl px-3 py-2 w-full bg-black text-white border-white/20"
+          className="border rounded-xl px-3 py-2 w-full bg黑 text白 border-white/20"
           value={name}
           onChange={e=>setName(e.target.value)}
         />
@@ -110,14 +96,11 @@ export default function New() {
         <button onClick={saveOnly} disabled={busy} className="px-4 py-2 rounded-xl border border-white">
           {busy ? '儲存中…' : '儲存'}
         </button>
-        <button onClick={saveAndStart} disabled={busy} className="px-4 py-2 rounded-xl border border-white">
-          {busy ? '儲存中…' : '儲存並開始'}
-        </button>
       </div>
 
       {savedId && (
         <div className="text-sm opacity-80">
-          已儲存。你可以到 <a className="underline" href="/hiit">HIIT 清單</a> 或按「儲存並開始」播放。
+          已儲存。你可以到 <a className="underline" href="/hiit">HIIT 清單</a> 查看或播放。
         </div>
       )}
     </div>

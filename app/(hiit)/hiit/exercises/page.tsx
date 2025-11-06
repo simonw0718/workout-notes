@@ -200,7 +200,7 @@ export default function ExercisesPage() {
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl sm:text-2xl font-semibold whitespace-nowrap overflow-hidden text-ellipsis">
+        <h1 className="text-xl sm:text-2xl font-semibold whitespace-nowrap overflow-hidden text-ellipsis font-title text-center">
           動作庫
         </h1>
 
