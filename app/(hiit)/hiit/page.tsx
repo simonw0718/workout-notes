@@ -101,14 +101,14 @@ export default function Page() {
     <div className="p-4 text-white">
       {/* 第一列：標題置中 + 右側返回 Workout（同一行） */}
       <div className="relative mb-3">
-        <h1 className="text-2xl font-semibold font-title absolute left-1/2 -translate-x-1/2 mb-3">HIIT</h1>
+       <h1 className="text-2xl font-semibold font-title absolute left-1/2 -translate-x-1/2">HIIT</h1>
         <div className="flex justify-end">
           <Link href="/" className="text-sm text-white/70 hover:text-white transition">← Workout</Link>
         </div>
       </div>
 
       {/* 第二列：右側工具列（歷史在動作庫左邊） */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-4">
         <div /> {/* 左側占位，保持視覺平衡 */}
         <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap [-webkit-overflow-scrolling:touch] pl-1 -mr-1 pr-1">
           <Link

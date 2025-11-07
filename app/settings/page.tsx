@@ -11,8 +11,8 @@ import {
 import type { Exercise, Unit, Category } from "@/lib/models/types";
 import ExerciseEditorDrawer from "@/components/ExerciseEditorDrawer";
 
-// ⬇ 動態滾輪（IndexedDB）
-import { loadWheels } from "@/lib/db/wheels";
+// 滾輪（IndexedDB）
+import { loadWheels, saveWheels } from "@/lib/db/wheels";
 import WheelOptionsDrawer from "@/components/WheelOptionsDrawer";
 
 /** 失敗／尚未初始化時的後援清單 */
@@ -153,20 +153,12 @@ export default function SettingsPage() {
     setRemoving(prev => new Set(prev).add(id));
     await new Promise(r => setTimeout(r, 220)); // 對應 transition duration
     await deleteExercise(id);
-    setSelected(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
+    setSelected(s => { const n=new Set(s); n.delete(id); return n; });
     await loadExercises();
-    setRemoving(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
+    setRemoving(prev => { const n=new Set(prev); n.delete(id); return n; });
   }
 
-  // 批次刪除（先把所有 target 淡出，再刪）
+  // 批次刪除
   async function removeBatch(ids: string[]) {
     const withFade = new Set(removing);
     ids.forEach(id => withFade.add(id));
@@ -183,14 +175,13 @@ export default function SettingsPage() {
 
   return (
     <main className="max-w-screen-sm mx-auto p-4 sm:p-6 space-y-6">
-      {/* Sticky header：返回首頁、其他入口（樣式與設定/歷史一致） */}
+      {/* Sticky header */}
       <div className="sticky top-0 -mx-4 sm:-mx-6 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 z-10">
         <div className="px-4 sm:px-6 py-3 flex items-center justify-between border-b">
           <Link href="/" className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50">
             回首頁
           </Link>
           <div className="flex items-center gap-2">
-            {/* 滾輪選項編輯入口 */}
             <button
               onClick={() => setWheelsOpen(true)}
               className="rounded-xl border px-3 py-1 text-sm hover:bg-gray-50"
@@ -214,7 +205,6 @@ export default function SettingsPage() {
         <div className="space-y-3">
           <label className="text-sm text-gray-500">目前動作名稱（可留白用上方組合）</label>
 
-          {/* 兩個下拉：器材 × 動作（來源：IndexedDB，可在抽屜調整） */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <select
               className="w-full border rounded-xl p-3 bg-transparent"
@@ -235,7 +225,6 @@ export default function SettingsPage() {
             </select>
           </div>
 
-          {/* 自訂名稱（可空） */}
           <div className="space-y-1">
             <input
               className="w-full border rounded-xl p-3 bg-transparent"
@@ -399,7 +388,7 @@ export default function SettingsPage() {
                       title="點擊編輯"
                     >
                       <div className="font-medium">{ex.name}</div>
-                      <div className="text-xs text-white/60">
+                      <div className="text-xs text白/60">
                         分類：{CATEGORIES.find(c => c.key === (ex.category as Category))?.label ?? "—"} ・ 單位：{ex.defaultUnit ?? "kg"}
                       </div>
                     </button>
@@ -429,6 +418,23 @@ export default function SettingsPage() {
         )}
       </section>
 
+      {/* 滾輪設定抽屜（關閉時不必再強制 reload，因為 onSave 已把最新值設回） */}
+      <WheelOptionsDrawer
+        open={wheelsOpen}
+        onClose={() => setWheelsOpen(false)}
+        leftOptions={equipList}     // 左滾輪：器材
+        rightOptions={moveList}     // 右滾輪：常見動作
+        onSave={async (left, right) => {
+          // ✅ 寫入 IndexedDB 再更新畫面
+          const doc = await saveWheels({ equip: left, moves: right });
+          setEquipList(doc.equip);
+          setMoveList(doc.moves);
+          // 下拉的目前值也同步到新的第一項，避免空值
+          setEquip(doc.equip[0] ?? "");
+          setMove(doc.moves[0] ?? "");
+        }}
+      />
+
       {/* 抽屜（僅編輯，不放刪除） */}
       <ExerciseEditorDrawer
         open={drawerOpen}
@@ -436,18 +442,6 @@ export default function SettingsPage() {
         onClose={() => setDrawerOpen(false)}
         onSaved={loadExercises}
         onDeleted={loadExercises}
-      />
-
-      {/* 滾輪設定抽屜（抽屜內會自行儲存；關閉時呼叫 onSaved 重新載入） */}
-      <WheelOptionsDrawer
-        open={wheelsOpen}
-        onClose={() => setWheelsOpen(false)}
-        leftOptions={equipList}     // 左滾輪：器材
-        rightOptions={moveList}     // 右滾輪：常見動作
-        onSave={async () => {
-          // 抽屜按「儲存」後，重載一次資料讓下拉選單即時更新
-          await loadWheelOptions();
-        }}
       />
     </main>
   );

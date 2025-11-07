@@ -1,5 +1,6 @@
 // lib/db/wheels.ts
 // 目的：管理「滾輪選項」(器材清單 + 常見動作清單)；IndexedDB 單獨 store，避免動到既有 schema
+// 目的：管理「滾輪選項」(器材清單 + 常見動作清單)；IndexedDB 單獨 store
 
 import { openDB, IDBPDatabase } from "idb";
 
@@ -7,10 +8,10 @@ const DB_NAME = "workout-notes-wheels";
 const DB_VER = 1;
 const STORE = "wheelOptions";
 
-type WheelsDoc = {
+export type WheelsDoc = {
   id: "wheels";
-  equip: string[];   // 左側（器材）顯示清單
-  moves: string[];   // 右側（動作）顯示清單
+  equip: string[];
+  moves: string[];
   updatedAt: number; // ms
 };
 
@@ -39,7 +40,8 @@ const DEFAULT_MOVES = [
 export async function loadWheels(): Promise<WheelsDoc> {
   const db = await getDB();
   const doc = (await db.get(STORE, "wheels")) as WheelsDoc | undefined;
-  if (doc) return doc;
+  if (doc) return normalizeDoc(doc);
+
   // 首次給預設
   const seed: WheelsDoc = {
     id: "wheels",
@@ -66,7 +68,7 @@ export async function saveWheels(input: { equip: string[]; moves: string[] }) {
 function dedupAndTrim(arr: string[]) {
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const raw of arr) {
+  for (const raw of arr ?? []) {
     const s = (raw ?? "").trim();
     if (!s) continue;
     if (seen.has(s)) continue;
@@ -74,4 +76,12 @@ function dedupAndTrim(arr: string[]) {
     out.push(s);
   }
   return out;
+}
+
+function normalizeDoc(doc: WheelsDoc): WheelsDoc {
+  return {
+    ...doc,
+    equip: dedupAndTrim(doc.equip),
+    moves: dedupAndTrim(doc.moves),
+  };
 }
