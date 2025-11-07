@@ -1,4 +1,4 @@
-// app/page.tsx
+// app/temp/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -8,6 +8,7 @@ import {
   startSession,
   endSession,
   listAllExercises,
+  listFavorites,
   resumeLatestSession,
   listAllSessions,
   listSetsBySessionSafe,
@@ -27,20 +28,18 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "other", label: "其他" },
 ];
 
-/* 本機備援：推出「最近使用」清單 */
+// 本機備援：推出「最近使用」
 async function buildLocalRecent(
   N = 3
 ): Promise<Array<Pick<Exercise, "id" | "name" | "defaultUnit" | "category">>> {
   const exAll = await listAllExercises();
   if (!exAll.length) return [];
-
-  const sessions = (await listAllSessions()) as Session[];
-  const recentSessions = sessions
+  const sessions = (await listAllSessions())
     .filter((s) => !s.deletedAt)
     .sort((a, b) => {
-      const au = Number(a.updatedAt ?? a.startedAt ?? 0);
-      const bu = Number(b.updatedAt ?? b.startedAt ?? 0);
-      return bu - au; // 新到舊
+      const au = a.updatedAt ?? a.startedAt ?? 0;
+      const bu = b.updatedAt ?? b.startedAt ?? 0;
+      return bu - au;
     })
     .slice(0, Math.max(1, N));
 
@@ -50,11 +49,7 @@ async function buildLocalRecent(
   const pushFromSets = (sets: SetRecord[]) => {
     sets
       .filter((x) => !x.deletedAt)
-      .sort(
-        (a, b) =>
-          Number(b.updatedAt ?? b.createdAt ?? 0) -
-          Number(a.updatedAt ?? a.createdAt ?? 0)
-      )
+      .sort((a, b) => (b.updatedAt ?? b.createdAt) - (a.updatedAt ?? a.createdAt))
       .forEach((r) => {
         if (!seen.has(r.exerciseId)) {
           seen.add(r.exerciseId);
@@ -63,23 +58,19 @@ async function buildLocalRecent(
       });
   };
 
-  for (const s of recentSessions) {
+  for (const s of sessions) {
     const z = await listSetsBySessionSafe(s.id);
     pushFromSets(z);
   }
-
-  if (ordered.length === 0 && recentSessions[0]) {
-    const z = await listSetsBySessionSafe(recentSessions[0].id);
+  if (ordered.length === 0 && sessions[0]) {
+    const z = await listSetsBySessionSafe(sessions[0].id);
     pushFromSets(z);
   }
-
   if (ordered.length === 0) {
-    const allSets = await listAllSets();
-    pushFromSets(allSets);
+    const all = await listAllSets();
+    pushFromSets(all);
   }
-
   if (ordered.length === 0) return [];
-
   const map = new Map(exAll.map((e) => [e.id, e]));
   return ordered
     .map((id) => map.get(id))
@@ -92,8 +83,8 @@ async function buildLocalRecent(
     }));
 }
 
-export default function Home() {
-  /* ===== 訓練狀態/控制 ===== */
+export default function TempDeck() {
+  // ====== 訓練狀態/控制 ======
   const [session, setSession] = useState<Session | null>(null);
   const isActive = useMemo(() => !!(session && !session.endedAt), [session]);
   const [busy, setBusy] = useState(false);
@@ -122,7 +113,6 @@ export default function Home() {
       setBusy(false);
     }
   };
-
   const handleEnd = async () => {
     if (!session) return;
     try {
@@ -134,7 +124,6 @@ export default function Home() {
       setBusy(false);
     }
   };
-
   const handleContinue = async () => {
     try {
       setBusy(true);
@@ -144,9 +133,7 @@ export default function Home() {
           setSession(res.session as Session);
           return;
         }
-      } catch {
-        // server 失敗就走本機
-      }
+      } catch {}
       const s = await resumeLatestSession();
       if (!s) {
         alert("找不到可接續的訓練。可以直接「開始訓練」。");
@@ -158,7 +145,7 @@ export default function Home() {
     }
   };
 
-  /* ===== 資料（各分頁） ===== */
+  // ====== 資料（各分頁） ======
   const [all, setAll] = useState<Exercise[]>([]);
   const [recent, setRecent] = useState<
     Pick<Exercise, "id" | "name" | "defaultUnit" | "category">[]
@@ -166,7 +153,6 @@ export default function Home() {
 
   useEffect(() => {
     let alive = true;
-
     (async () => {
       try {
         const exAll = await listAllExercises();
@@ -175,8 +161,8 @@ export default function Home() {
         if (alive) setAll([]);
       }
     })();
-
     (async () => {
+      // 先打 API，再退回本機
       let filled = false;
       try {
         const r = await getRecentExercises(5);
@@ -190,9 +176,7 @@ export default function Home() {
           setRecent(mapped);
           filled = true;
         }
-      } catch {
-        // ignore
-      }
+      } catch {}
       if (!filled) {
         try {
           const local = await buildLocalRecent(3);
@@ -202,65 +186,42 @@ export default function Home() {
         }
       }
     })();
-
     return () => {
       alive = false;
     };
   }, []);
 
+  // 依分頁取得清單（不允許操作，只示意）
   const listForTab = (key: TabKey) => {
     if (key === "recent") return recent;
     return all
       .filter((e) => (e.category ?? "other") === key)
-      .map((e) => ({
-        id: e.id,
-        name: e.name,
-        defaultUnit: e.defaultUnit,
-        category: e.category as any,
-      }));
+      .map((e) => ({ id: e.id, name: e.name, defaultUnit: e.defaultUnit, category: e.category as any }));
   };
 
-  /* ===== Deck（水平卡片） ===== */
+  // ====== Deck（水平卡片） ======
   const [index, setIndex] = useState(0); // 預設「最近使用」
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // 當前卡片置中
+  // 自動置中：每次 index 變更都滑到中間
   useEffect(() => {
     const wrap = wrapRef.current;
     const card = cardRefs.current[index];
     if (!wrap || !card) return;
-    const delta = card.offsetLeft - (wrap.clientWidth / 2 - card.clientWidth / 2);
+
+    const wrapRect = wrap.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    const delta =
+      card.offsetLeft - // 卡片左邊距容器左邊
+      (wrap.clientWidth / 2 - cardRect.width / 2); // 讓卡片中心對齊容器中心
+
     wrap.scrollTo({ left: delta, behavior: "smooth" });
   }, [index]);
 
   const go = (dir: -1 | 1) => {
     setIndex((i) => Math.min(TABS.length - 1, Math.max(0, i + dir)));
   };
-
-/* 點清單 → 只有「訓練中」才允許導入動作頁 */
-async function goExercise(exId: string) {
-  // 休息中不可進入
-  if (!isActive) return;
-
-  // 先用目前 state 的 session
-  let s = session; // Session | null
-
-  // 若沒有或已結束，就補打一個最新的（注意 getLatestSession 可能回傳 undefined）
-  if (!s || s.endedAt) {
-    const latest = await getLatestSession(); // Session | undefined
-    if (!latest || latest.endedAt) return;   // 縮小型別為 Session
-    setSession(latest);
-    s = latest;
-  }
-
-  // 再保險一次（讓 TS 知道此時一定有 session）
-  if (!s) return;
-
-  // 導到動作頁
-  location.href =
-    `/exercise?exerciseId=${encodeURIComponent(exId)}&sessionId=${encodeURIComponent(s.id)}`;
-}
 
   return (
     <main className="min-h-[100dvh] bg-black">
@@ -281,13 +242,9 @@ async function goExercise(exId: string) {
 
         {/* 工具列（置中） */}
         <div className="hidden sm:flex items-center justify-center gap-2">
-          <Link
-            href="/settings"
-            className="px-3 py-1 rounded-xl border border-white text-white hover:opacity-90"
-          >
+          <Link href="/settings" className="px-3 py-1 rounded-xl border border-white text-white hover:opacity-90">
             設定
           </Link>
-
           {!isActive ? (
             <>
               <button
@@ -348,40 +305,26 @@ async function goExercise(exId: string) {
                   <div
                     key={t.key}
                     ref={(el: HTMLDivElement | null) => {
-                      cardRefs.current[i] = el;
-                    }}
+  cardRefs.current[i] = el;
+}}  
                     className="snap-center shrink-0 w-[86%] sm:w-[70%]"
                   >
                     <div className="rounded-2xl border border-white/15 bg-black/70 p-4">
-                      {/* 主題文字置中 */}
-                      <div className="text-lg font-semibold mb-2 text-center">{t.label}</div>
-
+                      <div className="text-lg font-semibold mb-2">{t.label}</div>
                       <ul className="space-y-2">
                         {rows.length === 0 && (
-                          <li className="text-sm text-white/50 text-center">此分類尚無動作</li>
+                          <li className="text-sm text-white/50">此分類尚無動作</li>
                         )}
-
                         {rows.map((ex) => (
-                          <li key={ex.id}>
-                            {isActive ? (
-                              <button
-                                onClick={() => goExercise(ex.id)}
-                                className="w-full rounded-xl border border-white/15 bg-neutral-900/70 px-4 py-3 text-center hover:bg-neutral-800 active:opacity-90"
-                                aria-label={`前往 ${ex.name}`}
-                              >
-                                {ex.name}
-                              </button>
-                            ) : (
-                              <div
-                                className="w-full rounded-xl border border-white/10 bg-neutral-900/50 px-4 py-3 text-center text-neutral-300 cursor-not-allowed"
-                                aria-disabled="true"
-                              >
-                                {ex.name}
-                              </div>
-                            )}
+                          <li
+                            key={ex.id}
+                            className="rounded-xl border border-white/15 bg-neutral-900/70 px-4 py-3 text-center"
+                          >
+                            {ex.name}
                           </li>
                         ))}
                       </ul>
+                      {/* 這裡原本的「聚焦此群組 / 歷史」已移除 */}
                     </div>
                   </div>
                 );
@@ -395,7 +338,9 @@ async function goExercise(exId: string) {
               <button
                 key={i}
                 onClick={() => setIndex(i)}
-                className={`size-2 rounded-full ${i === index ? "bg-white" : "bg-white/30"}`}
+                className={`size-2 rounded-full ${
+                  i === index ? "bg-white" : "bg-white/30"
+                }`}
                 aria-label={`切換到第 ${i + 1} 頁`}
               />
             ))}
@@ -405,35 +350,6 @@ async function goExercise(exId: string) {
         <Suspense fallback={null}>
           <CurrentProgressCard />
         </Suspense>
-
-        {/* ===== 兩顆按鈕：查看本次訓練摘要 / 歷史（恢復原樣式） ===== */}
-        <div className="grid grid-cols-2 gap-2 pt-2">
-          {/* 左：摘要（沒有進行中 session 時顯示灰階不可用） */}
-          {session ? (
-            <Link
-              href={`/summary?sessionId=${encodeURIComponent(session.id)}`}
-              className="rounded-2xl bg-black text-white border border-white px-4 py-3 text-center hover:opacity-90"
-            >
-              查看本次訓練摘要
-            </Link>
-          ) : (
-            <div
-              className="rounded-2xl bg-black text-white/50 border border-white/30 px-4 py-3 text-center cursor-not-allowed"
-              aria-disabled="true"
-              title="目前沒有進行中的訓練"
-            >
-              查看本次訓練摘要
-            </div>
-          )}
-
-          {/* 右：歷史（永遠可點） */}
-          <Link
-            href="/history"
-            className="rounded-2xl bg-black text-white border border-white px-4 py-3 text-center hover:opacity-90"
-          >
-            歷史
-          </Link>
-        </div>
       </div>
 
       {/* 測試：到 HIIT */}

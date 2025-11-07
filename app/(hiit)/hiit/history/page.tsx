@@ -146,11 +146,9 @@ export default function HistoryPage() {
       {/* 頂部：左上返回 + 右側回 HIIT */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link href="/hiit" className="px-3 py-1.5 rounded-xl border border-white/60 text-white/90 text-sm">← 回 HIIT</Link>
+          <Link href="/hiit" className="px-3 py-1.5 rounded-xl border border-white/60 text-white/90 text-sm">← 上一頁</Link>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/hiit" className="px-3 py-1.5 rounded-xl border border-white/60 text-white/90 text-sm">回 HIIT</Link>
-        </div>
+
       </div>
 
       <h1 className="mt-3 text-xl sm:text-2xl font-semibold">HIIT 歷史</h1>
