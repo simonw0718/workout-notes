@@ -231,8 +231,16 @@ export default function Home() {
     <main className="min-h-[100dvh] bg-black">
       {/* 內容區 */}
       <div className="max-w-screen-sm mx-auto px-4 py-6 space-y-6 sm:pb-6 relative">
-        {/* 狀態 Banner */}
-        <div className="w-full flex justify-center">
+
+        {/* === Title：最上方置中，與 HIIT 同字體 === */}
+        <div className="mb-1">
+          <h1 className="font-title text-2xl font-semibold text-center">
+            Workout Notes
+          </h1>
+        </div>
+
+        {/* === 狀態膠囊：置中，顯示在標題下方 === */}
+        <div className="w-full flex justify-center mb-2">
           <div
             className={`px-3 py-1 rounded-full text-sm font-medium ${
               isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
@@ -242,53 +250,45 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Header */}
-        <header className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white">Workout Notes</h1>
-          <div className="hidden sm:flex items-center gap-2">
-            <Link
-              href="/history"
-              className="rounded-xl bg-black text-white border border-white px-3 py-1 text-sm hover:opacity-90"
-            >
-              歷史
-            </Link>
-            <Link
-              href="/settings"
-              className="rounded-xl bg-black text-white border border-white px-3 py-1 text-sm hover:opacity-90"
-            >
-              設定
-            </Link>
+        {/* === 工具列（桌機版）：置中排列 === */}
+        <div className="hidden sm:flex items-center justify-center gap-2">
 
-            {!isActive ? (
-              <>
-                <button
-                  onClick={handleStart}
-                  disabled={busy}
-                  className="px-3 py-1 rounded-xl bg-black text-white border border-white hover:opacity-90 disabled:opacity-50"
-                >
-                  開始訓練
-                </button>
-                <button
-                  onClick={handleContinue}
-                  disabled={busy}
-                  className="px-3 py-1 rounded-xl bg-black text-white border border-white hover:opacity-90 disabled:opacity-50"
-                >
-                  繼續上次訓練
-                </button>
-              </>
-            ) : (
+          <Link
+            href="/settings"
+            className="px-3 py-1 rounded-xl bg-black text-white border border-white hover:opacity-90 disabled:opacity-50"
+          >
+            設定
+          </Link>
+
+          {!isActive ? (
+            <>
               <button
-                onClick={handleEnd}
+                onClick={handleStart}
                 disabled={busy}
                 className="px-3 py-1 rounded-xl bg-black text-white border border-white hover:opacity-90 disabled:opacity-50"
               >
-                結束
+                開始訓練
               </button>
-            )}
-          </div>
-        </header>
+              <button
+                onClick={handleContinue}
+                disabled={busy}
+                className="px-3 py-1 rounded-xl bg-black text-white border border-white hover:opacity-90 disabled:opacity-50"
+              >
+                繼續上次訓練
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleEnd}
+              disabled={busy}
+              className="px-3 py-1 rounded-xl bg-black text-white border border-white hover:opacity-90 disabled:opacity-50"
+            >
+              結束
+            </button>
+          )}
+        </div>
 
-        {/* 行動版操作列 */}
+        {/* 行動版操作列（保留既有行為） */}
         <div className="flex sm:hidden gap-2">
           {!isActive ? (
             <>
@@ -397,8 +397,8 @@ export default function Home() {
           </div>
         )}
       </div>
-      {/* ✅ 已移除：底下四個浮動按鈕（避免行動版點擊失效問題） */}
-            {/* --- 暫時測試用：HIIT 入口 --- */}
+
+      {/* --- 暫時測試用：HIIT 入口 --- */}
       <div className="mt-10 p-6 text-center border-t border-neutral-800">
         <Link
           href="/hiit"

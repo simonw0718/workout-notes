@@ -72,23 +72,38 @@ export default function Home() {
   return (
     <main className="min-h-[100dvh] bg-white">
       <div className="max-w-screen-sm mx-auto px-4 py-6 space-y-6">
-        {/* Header */}
-        <header className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Workout Notes</h1>
-          <div className="hidden sm:flex items-center gap-3">
-            <Link href="/settings" className="px-3 py-2 rounded-xl border text-gray-800 hover:bg-gray-50">
-              設定
-            </Link>
-            <div className="flex gap-2">
-              <button onClick={handleStartNew} className="px-4 py-2 rounded-2xl border">
-                新訓練
-              </button>
-              <button onClick={handleContinue} disabled={busy} className="px-4 py-2 rounded-2xl bg-black text-white disabled:opacity-50">
-                接續紀錄
-              </button>
-            </div>
+      {/* Header：置中標題 + 右側按鈕 */}
+      <header className="relative mb-3">
+        {/* 標題置中，使用 Oswald */}
+        <h1 className="font-title text-2xl font-semibold absolute left-1/2 -translate-x-1/2">
+          Workout Notes
+        </h1>
+
+        {/* 右側控制列 */}
+        <div className="hidden sm:flex items-center gap-3 justify-end">
+          <Link
+            href="/settings"
+            className="px-3 py-2 rounded-xl border text-gray-200 hover:bg-white/10"
+          >
+            設定
+          </Link>
+          <div className="flex gap-2">
+            <button
+              onClick={handleStartNew}
+              className="px-4 py-2 rounded-2xl border border-white hover:bg-white/10"
+            >
+              新訓練
+            </button>
+            <button
+              onClick={handleContinue}
+              disabled={busy}
+              className="px-4 py-2 rounded-2xl bg-white text-black disabled:opacity-50"
+            >
+              接續紀錄
+            </button>
           </div>
-        </header>
+        </div>
+      </header>
 
         {/* 行動版主要操作列 */}
         <div className="flex sm:hidden gap-2">

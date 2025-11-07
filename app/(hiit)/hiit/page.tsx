@@ -1,9 +1,12 @@
-// /app/(hiit)/hiit/page.tsx
+///app/(hiit)/hiit/page.tsx
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import { listWorkouts, deleteWorkout } from '@/lib/hiit/api';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  listWorkouts, deleteWorkout,
+  exportWorkouts, importWorkouts, type WorkoutsExportFile
+} from '@/lib/hiit/api';
 import { computeWorkoutMs, formatHMS } from '@/lib/hiit/time';
 
 type Workout = {
@@ -29,6 +32,11 @@ export default function Page() {
   const [armedBatch, setArmedBatch] = useState(false);
   const ARM_MS = 2500;
 
+  // 同步（匯入/匯出）彈窗
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [overwrite, setOverwrite] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const fetchList = async () => {
     setLoading(true);
     try {
@@ -37,6 +45,14 @@ export default function Page() {
     } finally { setLoading(false); }
   };
   useEffect(() => { fetchList(); }, []);
+
+  // Esc 關閉同步彈窗
+  useEffect(() => {
+    if (!syncOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSyncOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [syncOpen]);
 
   const totalsMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -97,11 +113,52 @@ export default function Page() {
     }
   };
 
+  // ===== 匯入 / 匯出（同步）=====
+  function openImportPicker() {
+    if (!fileInputRef.current) return;
+    fileInputRef.current.value = '';
+    fileInputRef.current.click();
+  }
+
+  async function onImportFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      const text = await f.text();
+      const json = JSON.parse(text) as WorkoutsExportFile;
+      setBusy(true);
+      const res = await importWorkouts(json, { overwrite });
+      await fetchList();
+      alert(`匯入完成：新增 ${res.added}、更新 ${res.updated}、略過 ${res.skipped}${res.conflicts.length ? `\n衝突（同名未覆蓋）：\n- ${res.conflicts.join('\n- ')}` : ''}`);
+    } catch (e:any) {
+      alert(`匯入失敗：${e?.message ?? e}`);
+    } finally {
+      setBusy(false);
+      setSyncOpen(false);
+    }
+  }
+
+  async function handleExportAll() {
+    try {
+      const file = await exportWorkouts();
+      const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `hiit-workouts-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'')}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e:any) {
+      alert(`匯出失敗：${e?.message ?? e}`);
+    } finally {
+      setSyncOpen(false);
+    }
+  }
+
   return (
     <div className="p-4 text-white">
       {/* 第一列：標題置中 + 右側返回 Workout（同一行） */}
       <div className="relative mb-3">
-       <h1 className="text-2xl font-semibold font-title absolute left-1/2 -translate-x-1/2">HIIT</h1>
+        <h1 className="text-2xl font-semibold font-title absolute left-1/2 -translate-x-1/2">HIIT</h1>
         <div className="flex justify-end">
           <Link href="/" className="text-sm text-white/70 hover:text-white transition">← Workout</Link>
         </div>
@@ -124,6 +181,24 @@ export default function Page() {
           >
             動作庫
           </Link>
+
+          {/* 同步：彈窗 */}
+          <div className="shrink-0">
+            <button
+              type="button"
+              onClick={() => setSyncOpen(true)}
+              className="px-3 py-1.5 sm:py-2 rounded-xl border border-white text-white text-sm sm:text-base"
+            >
+              同步
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json"
+              className="hidden"
+              onChange={onImportFileChange}
+            />
+          </div>
 
           {!manageMode ? (
             <button
@@ -207,7 +282,6 @@ export default function Page() {
                       <Link href={`/hiit/edit?wid=${encodeURIComponent(w.id)}`} className="shrink-0 text-sm underline">
                         編輯
                       </Link>
-                      {/* 開始 → 先到預覽 */}
                       <Link href={`/hiit/preview?wid=${encodeURIComponent(w.id)}`} className="shrink-0 text-sm underline">
                         開始
                       </Link>
@@ -243,6 +317,59 @@ export default function Page() {
             </li>
           )}
         </ul>
+      )}
+
+      {/* === 同步 Modal === */}
+      {syncOpen && (
+        <div className="fixed inset-0 z-50" aria-modal="true" role="dialog">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setSyncOpen(false)} />
+          <div className="absolute inset-0 grid place-items-center p-4">
+            <div className="w-full max-w-md rounded-2xl border border-white/15 bg-black/90 backdrop-blur shadow-xl p-4 sm:p-5">
+              <div className="pb-3 border-b border-white/10">
+                <h3 className="text-lg font-semibold">同步</h3>
+                <p className="mt-1 text-xs text-white/70">方案資料匯入 / 匯出。</p>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <label className="flex items-center justify-between rounded-xl border border-white/15 px-3 py-2">
+                  <span className="text-sm">覆蓋同名</span>
+                  <input
+                    type="checkbox"
+                    className="size-4 accent-white"
+                    checked={overwrite}
+                    onChange={(e)=>setOverwrite(e.target.checked)}
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={openImportPicker}
+                  className="w-full rounded-xl border border-white/60 px-4 py-2 text-sm hover:bg-white/10"
+                >
+                  匯入
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportAll}
+                  className="w-full rounded-xl border border-white/60 px-4 py-2 text-sm hover:bg-white/10"
+                >
+                  匯出全部
+                </button>
+              </div>
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setSyncOpen(false)}
+                  className="rounded-xl border border-white/30 px-4 py-2 text-sm hover:bg-white/10"
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
