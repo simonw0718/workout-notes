@@ -1,6 +1,6 @@
 // lib/sync/types.ts
 export type Unit = "kg" | "lb";
-
+export type RepsUnit = "rep" | "sec"; 
 export type SessionRow = {
   id: string;
   startedAt: number;
@@ -16,6 +16,7 @@ export type ExerciseRow = {
   defaultWeight?: number;
   defaultReps?: number;
   defaultUnit?: Unit;
+  defaultRepsUnit?: RepsUnit;
   isFavorite?: boolean;
   sortOrder?: number | null;
   updatedAt: number;

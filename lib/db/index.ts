@@ -1,6 +1,6 @@
 // lib/db/index.ts
 import { openDB, DBSchema, IDBPDatabase } from "idb";
-import type { Exercise, Session, SetRecord, Meta, Unit, Category } from "@/lib/models/types";
+import type { Exercise, Session, SetRecord, Meta, Unit, Category, RepsUnit } from "@/lib/models/types";
 import { safeUUID } from "@/lib/utils/uuid";
 
 // Row Types：資料含 updatedAt / dirty
@@ -223,6 +223,8 @@ export async function createExercise(input: {
   defaultWeight?: number | null;
   defaultReps?: number | null;
   defaultUnit?: Unit | null;
+  /** 新增：預設次數單位 */
+  defaultRepsUnit?: RepsUnit | null;
   isFavorite?: boolean | null;
   sortOrder?: number | null;
   category?: Category | null;
@@ -243,6 +245,8 @@ export async function createExercise(input: {
     defaultWeight: input.defaultWeight ?? null,
     defaultReps: input.defaultReps ?? null,
     defaultUnit: (input.defaultUnit as Unit | null) ?? "kg",
+    /** 新增：預設 reps 單位（預設用 "rep"） */
+    defaultRepsUnit: (input.defaultRepsUnit as RepsUnit | null) ?? "rep",
     isFavorite: !!input.isFavorite,
     sortOrder: sortOrder ?? null,
     deletedAt: null,
@@ -262,6 +266,8 @@ export async function updateExercise(patch: {
   defaultWeight?: number | null;
   defaultReps?: number | null;
   defaultUnit?: Unit | null;
+  /** 新增：可更新預設次數單位 */
+  defaultRepsUnit?: RepsUnit | null;
   isFavorite?: boolean | null;
   sortOrder?: number | null;
   category?: Category | null;
@@ -277,6 +283,7 @@ export async function updateExercise(patch: {
     ...(patch.defaultWeight !== undefined ? { defaultWeight: patch.defaultWeight } : {}),
     ...(patch.defaultReps !== undefined ? { defaultReps: patch.defaultReps } : {}),
     ...(patch.defaultUnit !== undefined ? { defaultUnit: patch.defaultUnit } : {}),
+    ...(patch.defaultRepsUnit !== undefined ? { defaultRepsUnit: patch.defaultRepsUnit } : {}),
     ...(patch.isFavorite !== undefined ? { isFavorite: patch.isFavorite ?? null } : {}),
     ...(patch.sortOrder !== undefined ? { sortOrder: patch.sortOrder ?? null } : {}),
     ...(patch.category !== undefined ? { category: (patch.category ?? "other") as Category } : {}),

@@ -364,7 +364,7 @@ function ExerciseInner() {
 
           {/* 重量 */}
           <div className="space-y-2 max-w-sm mx-auto">
-            <div className="text-xs text-white/80">重量（{unit}）</div>
+            <div className="text-xs text-white/80">重量/秒數（{unit}）</div>
             <div className="rounded-2xl border border-white/25 p-2">
               <div className="grid grid-cols-[72px_1fr_72px] gap-2 items-center">
                 <button
@@ -394,7 +394,7 @@ function ExerciseInner() {
 
           {/* 次數 */}
           <div className="space-y-2 max-w-sm mx-auto">
-            <div className="text-xs text-white/80">次數</div>
+            <div className="text-xs text-white/80">次數/秒數</div>
             <div className="rounded-2xl border border-white/25 p-2">
               <div className="grid grid-cols-[72px_1fr_72px] gap-2 items-center">
                 <button

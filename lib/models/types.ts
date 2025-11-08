@@ -3,6 +3,8 @@
 /** ===== 基本列舉（字面量） ===== */
 export type Unit = "kg" | "lb" | "sec" | "min";
 export type Category = "upper" | "lower" | "core" | "other";
+/** 新增：次數單位（rep/秒） */
+export type RepsUnit = "rep" | "sec";
 
 /** 供 UI/驗證使用的常數清單（可選） */
 export const UNIT_OPTIONS: Unit[] = ["kg", "lb", "sec", "min"];
@@ -44,6 +46,8 @@ export type Exercise = {
   defaultWeight?: number | null;
   defaultReps?: number | null;
   defaultUnit?: Unit | null;
+  /** 新增：預設「次數單位」（rep/秒） */
+  defaultRepsUnit?: RepsUnit | null;
   isFavorite?: boolean | null; // 舊欄位相容
   sortOrder?: number | null;
   deletedAt?: number | null;

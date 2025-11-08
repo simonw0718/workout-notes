@@ -8,7 +8,7 @@ import {
   listAllExercises,
   deleteExercise,
 } from "@/lib/db";
-import type { Exercise, Unit, Category } from "@/lib/models/types";
+import type { Exercise, Unit, Category, RepsUnit } from "@/lib/models/types";
 import ExerciseEditorDrawer from "@/components/ExerciseEditorDrawer";
 
 // 滾輪（IndexedDB）
@@ -56,6 +56,9 @@ export default function SettingsPage() {
   const [unit, setUnit] = useState<Unit>("kg");
   const [defaultWeight, setDefaultWeight] = useState("");
   const [defaultReps, setDefaultReps] = useState("");
+  /** 新增：預設次數單位（次/秒） */
+  const [repsUnit, setRepsUnit] = useState<RepsUnit>("rep");
+
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -130,6 +133,8 @@ export default function SettingsPage() {
         defaultWeight: numOrUndef(defaultWeight),
         defaultReps: numOrUndef(defaultReps),
         defaultUnit: unit,
+        /** 新增：帶出預設「次數單位」 */
+        defaultRepsUnit: repsUnit,
         isFavorite: false,
         category,
       });
@@ -140,6 +145,7 @@ export default function SettingsPage() {
       setUnit("kg");
       setDefaultWeight("");
       setDefaultReps("");
+      setRepsUnit("rep");
       await loadExercises();
     } catch (e: any) {
       setMsg(`新增失敗：${e?.message ?? e}`);
@@ -172,6 +178,7 @@ export default function SettingsPage() {
 
   const weightLabel = unit === "sec" || unit === "min" ? "預設時間" : "預設重量";
   const weightUnitLabel = unit === "sec" ? "sec" : unit === "min" ? "min" : unit;
+  const repsUnitLabel = repsUnit === "sec" ? "秒" : "次";
 
   return (
     <main className="max-w-screen-sm mx-auto p-4 sm:p-6 space-y-6">
@@ -238,7 +245,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* 分類 + 單位 */}
+        {/* 分類 + 預設重量單位 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-2">
             <label className="text-sm text-gray-500">分類</label>
@@ -252,7 +259,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm text-gray-500">預設單位（點擊切換）</label>
+            <label className="text-sm text-gray-500">預設重量/時間單位（點擊切換）</label>
             <button
               type="button"
               onClick={() => setUnit(nextUnit(unit))}
@@ -279,7 +286,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* 預設次數 */}
+        {/* 預設次數 + 次數單位切換（次 / 秒） */}
         <div className="space-y-2">
           <label className="text-sm text-gray-500">預設次數（可空）</label>
           <div className="flex items-center gap-2">
@@ -287,10 +294,17 @@ export default function SettingsPage() {
               value={defaultReps}
               onChange={(e) => setDefaultReps(e.target.value)}
               inputMode="numeric"
-              placeholder="例如：10"
+              placeholder={repsUnit === "sec" ? "例如：30（秒）" : "例如：10（次）"}
               className="flex-1 rounded-xl border px-3 py-3 text-base bg-transparent"
             />
-            <span className="rounded-xl border px-3 py-2 whitespace-nowrap">單位：次</span>
+            <button
+              type="button"
+              onClick={() => setRepsUnit(p => (p === "rep" ? "sec" : "rep"))}
+              className="rounded-xl border px-3 py-2 whitespace-nowrap"
+              title="點擊切換 次/秒"
+            >
+              單位：{repsUnitLabel}
+            </button>
           </div>
         </div>
 
@@ -363,6 +377,7 @@ export default function SettingsPage() {
           <ul className="divide-y divide-white/10">
             {filtered.map(ex => {
               const isRemoving = removing.has(ex.id);
+              const ru: RepsUnit = (ex as any).defaultRepsUnit ?? "rep";
               return (
                 <li
                   key={ex.id}
@@ -388,8 +403,10 @@ export default function SettingsPage() {
                       title="點擊編輯"
                     >
                       <div className="font-medium">{ex.name}</div>
-                      <div className="text-xs text白/60">
-                        分類：{CATEGORIES.find(c => c.key === (ex.category as Category))?.label ?? "—"} ・ 單位：{ex.defaultUnit ?? "kg"}
+                      <div className="text-xs text-white/60">
+                        分類：{CATEGORIES.find(c => c.key === (ex.category as Category))?.label ?? "—"}
+                        ・ 重/時單位：{ex.defaultUnit ?? "kg"}
+                        ・ 次數單位：{ru === "sec" ? "秒" : "次"}
                       </div>
                     </button>
                   </div>
