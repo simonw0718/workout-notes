@@ -238,29 +238,23 @@ export default function Home() {
     setIndex((i) => Math.min(TABS.length - 1, Math.max(0, i + dir)));
   };
 
-/* 點清單 → 只有「訓練中」才允許導入動作頁 */
-async function goExercise(exId: string) {
-  // 休息中不可進入
-  if (!isActive) return;
+  /* 點清單 → 只有「訓練中」才允許導入動作頁 */
+  async function goExercise(exId: string) {
+    if (!isActive) return; // 休息中不可進入
 
-  // 先用目前 state 的 session
-  let s = session; // Session | null
+    let s = session; // Session | null
+    if (!s || s.endedAt) {
+      const latest = await getLatestSession(); // Session | undefined
+      if (!latest || latest.endedAt) return;
+      setSession(latest);
+      s = latest;
+    }
+    if (!s) return;
 
-  // 若沒有或已結束，就補打一個最新的（注意 getLatestSession 可能回傳 undefined）
-  if (!s || s.endedAt) {
-    const latest = await getLatestSession(); // Session | undefined
-    if (!latest || latest.endedAt) return;   // 縮小型別為 Session
-    setSession(latest);
-    s = latest;
+    location.href = `/exercise?exerciseId=${encodeURIComponent(exId)}&sessionId=${encodeURIComponent(
+      s.id
+    )}`;
   }
-
-  // 再保險一次（讓 TS 知道此時一定有 session）
-  if (!s) return;
-
-  // 導到動作頁
-  location.href =
-    `/exercise?exerciseId=${encodeURIComponent(exId)}&sessionId=${encodeURIComponent(s.id)}`;
-}
 
   return (
     <main className="min-h-[100dvh] bg-black">
@@ -279,7 +273,7 @@ async function goExercise(exId: string) {
           </div>
         </div>
 
-        {/* 工具列（置中） */}
+        {/* 工具列（桌機版：置中） */}
         <div className="hidden sm:flex items-center justify-center gap-2">
           <Link
             href="/settings"
@@ -310,6 +304,43 @@ async function goExercise(exId: string) {
               onClick={handleEnd}
               disabled={busy}
               className="px-3 py-1 rounded-xl border border-white text-white hover:opacity-90 disabled:opacity-50"
+            >
+              結束
+            </button>
+          )}
+        </div>
+
+        {/* 行動版操作列（手機顯示） */}
+        <div className="flex sm:hidden gap-2">
+          <Link
+            href="/settings"
+            className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white text-center"
+          >
+            設定
+          </Link>
+
+          {!isActive ? (
+            <>
+              <button
+                onClick={handleStart}
+                disabled={busy}
+                className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white disabled:opacity-50"
+              >
+                開始訓練
+              </button>
+              <button
+                onClick={handleContinue}
+                disabled={busy}
+                className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white disabled:opacity-50"
+              >
+                繼續上次
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleEnd}
+              disabled={busy}
+              className="flex-1 px-4 py-3 rounded-2xl bg-black text-white border border-white disabled:opacity-50"
             >
               結束
             </button>
@@ -408,7 +439,6 @@ async function goExercise(exId: string) {
 
         {/* ===== 兩顆按鈕：查看本次訓練摘要 / 歷史（恢復原樣式） ===== */}
         <div className="grid grid-cols-2 gap-2 pt-2">
-          {/* 左：摘要（沒有進行中 session 時顯示灰階不可用） */}
           {session ? (
             <Link
               href={`/summary?sessionId=${encodeURIComponent(session.id)}`}
@@ -426,7 +456,6 @@ async function goExercise(exId: string) {
             </div>
           )}
 
-          {/* 右：歷史（永遠可點） */}
           <Link
             href="/history"
             className="rounded-2xl bg-black text-white border border-white px-4 py-3 text-center hover:opacity-90"
