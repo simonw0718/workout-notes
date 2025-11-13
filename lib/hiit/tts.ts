@@ -60,8 +60,8 @@ export function cancelSpeak() {
   try { getSynth()?.cancel(); } catch {}
 }
 
-/** 更嚴格的 voice 選擇：zh-TW → zh-* → 名稱含 Chinese/Taiwan → 其他 */
-function pickVoice(langPref = 'zh-TW'): SpeechSynthesisVoice | null {
+/** 更嚴格的 voice 選擇：en-US → en-* → 名稱含 English → 其他 */
+function pickVoice(langPref = 'en-US'): SpeechSynthesisVoice | null {
   const vs = voicesCache || [];
   if (!vs.length) return null;
   const L = (s?: string) => s?.toLowerCase() ?? '';
@@ -69,8 +69,8 @@ function pickVoice(langPref = 'zh-TW'): SpeechSynthesisVoice | null {
 
   return (
     tryFind(v => L(v.lang) === L(langPref)) ||
-    tryFind(v => L(v.lang).startsWith('zh')) ||
-    tryFind(v => /chinese|taiwan|mandarin/i.test(v.name)) ||
+    tryFind(v => L(v.lang).startsWith('en')) ||
+    tryFind(v => /english/i.test(v.name)) ||
     vs[0]
   );
 }
@@ -103,7 +103,13 @@ type SpeakOptions = {
 };
 
 /** 說話（分段 + 防抖）。若使用者未開啟或未 prime，直接返回 */
-export async function speak(text: string, lang = 'zh-TW', rateOrOpts?: number | SpeakOptions, pitch?: number, volume?: number) {
+export async function speak(
+  text: string,
+  lang = 'en-US',
+  rateOrOpts?: number | SpeakOptions,
+  pitch?: number,
+  volume?: number,
+) {
   if (!text || typeof window === 'undefined') return;
   const s = getSynth();
   if (!s) return;
@@ -132,7 +138,7 @@ export async function speak(text: string, lang = 'zh-TW', rateOrOpts?: number | 
       if (myNonce !== speakNonce) break; // 被取消或有新播報
       await new Promise<void>((resolve) => {
         const u = new SpeechSynthesisUtterance(part);
-        u.lang   = opts.lang ?? 'zh-TW';
+        u.lang   = opts.lang ?? 'en-US';
         u.rate   = opts.rate ?? 0.9;
         u.pitch  = opts.pitch ?? 1;
         u.volume = opts.volume ?? 1;
