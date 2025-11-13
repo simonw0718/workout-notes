@@ -98,18 +98,41 @@ export default function Home() {
   const isActive = useMemo(() => !!(session && !session.endedAt), [session]);
   const [busy, setBusy] = useState(false);
 
+  // 🔑 強制 CurrentProgressCard remount 的 key
+  const [progressKey, setProgressKey] = useState(0);
+
+  // 抽出共用的 session 重新載入邏輯
+  const reloadSession = async () => {
+    try {
+      const s = await getLatestSession();
+      setSession(s ?? null);
+    } catch {
+      setSession(null);
+    }
+  };
+
+  // 首次載入：抓一次 session 狀態
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const s = await getLatestSession();
-        if (alive) setSession(s ?? null);
-      } catch {
-        if (alive) setSession(null);
+    void reloadSession();
+  }, []);
+
+  // 頁面重新變可見 / 從 bfcache 回來時，重抓 session + 進度
+  useEffect(() => {
+    const handleVisible = () => {
+      if (document.visibilityState === "visible") {
+        void (async () => {
+          await reloadSession();
+          setProgressKey((k) => k + 1); // 讓 CurrentProgressCard 重掛一次
+        })();
       }
-    })();
+    };
+
+    window.addEventListener("pageshow", handleVisible);
+    document.addEventListener("visibilitychange", handleVisible);
+
     return () => {
-      alive = false;
+      window.removeEventListener("pageshow", handleVisible);
+      document.removeEventListener("visibilitychange", handleVisible);
     };
   }, []);
 
@@ -118,6 +141,7 @@ export default function Home() {
       setBusy(true);
       const s = await startSession();
       setSession(s ?? null);
+      setProgressKey((k) => k + 1);
     } finally {
       setBusy(false);
     }
@@ -130,6 +154,7 @@ export default function Home() {
       await endSession(session.id);
       const s = await getLatestSession();
       setSession(s ?? null);
+      setProgressKey((k) => k + 1);
     } finally {
       setBusy(false);
     }
@@ -142,6 +167,7 @@ export default function Home() {
         const res = await apiContinue();
         if (res?.ok && res.session) {
           setSession(res.session as Session);
+          setProgressKey((k) => k + 1);
           return;
         }
       } catch {
@@ -153,6 +179,7 @@ export default function Home() {
         return;
       }
       setSession(s);
+      setProgressKey((k) => k + 1);
     } finally {
       setBusy(false);
     }
@@ -187,7 +214,7 @@ export default function Home() {
           category: (x.category as any) ?? "other",
         }));
         if (mapped.length) {
-          setRecent(mapped);
+          if (alive) setRecent(mapped);
           filled = true;
         }
       } catch {
@@ -196,9 +223,9 @@ export default function Home() {
       if (!filled) {
         try {
           const local = await buildLocalRecent(3);
-          setRecent(local);
+          if (alive) setRecent(local);
         } catch {
-          setRecent([]);
+          if (alive) setRecent([]);
         }
       }
     })();
@@ -251,9 +278,10 @@ export default function Home() {
     }
     if (!s) return;
 
-    location.href = `/exercise?exerciseId=${encodeURIComponent(exId)}&sessionId=${encodeURIComponent(
-      s.id
-    )}`;
+    // 這邊維持 location.href，避免跟現有路由行為打架
+    location.href = `/exercise?exerciseId=${encodeURIComponent(
+      exId
+    )}&sessionId=${encodeURIComponent(s.id)}`;
   }
 
   return (
@@ -347,7 +375,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* Deck：水平卡片（方案 C） */}
+        {/* Deck：水平卡片 */}
         <div className="relative">
           {/* 左/右箭頭 */}
           <button
@@ -385,11 +413,15 @@ export default function Home() {
                   >
                     <div className="rounded-2xl border border-white/15 bg-black/70 p-4">
                       {/* 主題文字置中 */}
-                      <div className="text-lg font-semibold mb-2 text-center">{t.label}</div>
+                      <div className="text-lg font-semibold mb-2 text-center">
+                        {t.label}
+                      </div>
 
                       <ul className="space-y-2">
                         {rows.length === 0 && (
-                          <li className="text-sm text-white/50 text-center">此分類尚無動作</li>
+                          <li className="text-sm text-white/50 text-center">
+                            此分類尚無動作
+                          </li>
                         )}
 
                         {rows.map((ex) => (
@@ -426,18 +458,21 @@ export default function Home() {
               <button
                 key={i}
                 onClick={() => setIndex(i)}
-                className={`size-2 rounded-full ${i === index ? "bg-white" : "bg-white/30"}`}
+                className={`size-2 rounded-full ${
+                  i === index ? "bg-white" : "bg-white/30"
+                }`}
                 aria-label={`切換到第 ${i + 1} 頁`}
               />
             ))}
           </div>
         </div>
 
+        {/* 本次進度卡片（用 key 控制 remount） */}
         <Suspense fallback={null}>
-          <CurrentProgressCard />
+          <CurrentProgressCard key={progressKey} />
         </Suspense>
 
-        {/* ===== 兩顆按鈕：查看本次訓練摘要 / 歷史（恢復原樣式） ===== */}
+        {/* ===== 兩顆按鈕：查看本次訓練摘要 / 歷史 ===== */}
         <div className="grid grid-cols-2 gap-2 pt-2">
           {session ? (
             <Link
@@ -465,7 +500,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 測試：到 HIIT */}
+      {/* 到 HIIT */}
       <div className="mt-10 p-6 text-center border-t border-neutral-800">
         <Link
           href="/hiit"

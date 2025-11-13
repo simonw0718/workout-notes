@@ -1,5 +1,4 @@
-///app/(hiit)/hiit/play/page.tsx
-
+// /app/(hiit)/hiit/play/page.tsx
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
@@ -8,9 +7,13 @@ import RingCountdown from '@/components/hiit/RingCountdown';
 import PlayerHUD from '@/components/hiit/PlayerHUD';
 import BackButton from '@/components/BackButton';
 import { buildTimeline, type TimelineItem } from '@/lib/hiit/timeline';
-import { getWorkout, createHistory, type HiitWorkoutDto } from '@/lib/hiit/api';
+import {
+  getWorkout,
+  createHistory,
+  type HiitWorkoutDto,
+  listHiitExercises,
+} from '@/lib/hiit/api';
 import { speak, isTtsEnabled, setTtsEnabled, cancelSpeak, primeTTS } from '@/lib/hiit/tts';
-import { listHiitExercises } from '@/lib/hiit/api';
 
 function PlayInner() {
   const sp = useSearchParams();
@@ -38,6 +41,7 @@ function PlayInner() {
   // refs
   const raf = useRef<number | null>(null);
   const beepCtx = useRef<AudioContext | null>(null);
+  const lastCountdownSpokenRef = useRef<number | null>(null); // 最後 3 秒倒數用
 
   // ====== 歷史紀錄：開始/結束/保護旗標 ======
   const startedAtRef = useRef<number | null>(null);
@@ -58,14 +62,19 @@ function PlayInner() {
       setMsLeft(0);
       startedAtRef.current = Date.now();
     })().catch(console.error);
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [wid]);
 
   // ── 取得「目前段落」對應動作的 cue（用名稱查動作庫） ─────────────────────────
   useEffect(() => {
     const cur = timeline[idx];
     const label = cur?.label?.trim();
-    if (!label || cur?.kind !== 'work') { setCueText(''); return; }
+    if (!label || cur?.kind !== 'work') {
+      setCueText('');
+      return;
+    }
 
     let abort = false;
     (async () => {
@@ -77,11 +86,15 @@ function PlayInner() {
       }
     })();
 
-    return () => { abort = true; };
+    return () => {
+      abort = true;
+    };
   }, [timeline, idx]);
 
   // ── 每次換段落就先把影片顯示狀態重置 ─────────────────────────────────────────
-  useEffect(() => { setVideoOk(false); }, [idx]);
+  useEffect(() => {
+    setVideoOk(false);
+  }, [idx]);
 
   // ── TTS voices 載入 & 可見度恢復 ───────────────────────────────────────────
   useEffect(() => {
@@ -92,8 +105,14 @@ function PlayInner() {
         if (s) {
           if (s.getVoices().length > 0) setReady();
           else s.addEventListener('voiceschanged', setReady, { once: true });
-          const onVis = () => { try { s.resume?.(); } catch {} };
+
+          const onVis = () => {
+            try {
+              s.resume?.();
+            } catch {}
+          };
           document.addEventListener('visibilitychange', onVis);
+
           return () => {
             document.removeEventListener('visibilitychange', onVis);
             // @ts-ignore
@@ -102,18 +121,6 @@ function PlayInner() {
         }
       } catch {}
     }
-  }, []);
-
-  // ── 任一互動 -> 解鎖 audio / tts（iOS） ────────────────────────────────────
-  useEffect(() => {
-    const onUserGesture = () => { primeTTS(); primeAudioAndTTS(); };
-    window.addEventListener('pointerdown', onUserGesture, { once: true, capture: true });
-    window.addEventListener('keydown', onUserGesture, { once: true, capture: true });
-    return () => {
-      window.removeEventListener('pointerdown', onUserGesture, { capture: true } as any);
-      window.removeEventListener('keydown', onUserGesture, { capture: true } as any);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const primeAudioAndTTS = () => {
@@ -129,13 +136,31 @@ function PlayInner() {
       if (s) {
         s.resume?.();
         const u = new SpeechSynthesisUtterance('\u200B'); // 無聲
-        u.volume = 0; u.rate = 1; u.pitch = 1; u.lang = 'zh-TW';
+        u.volume = 0;
+        u.rate = 1;
+        u.pitch = 1;
+        u.lang = 'zh-TW';
         s.speak(u);
         s.cancel();
       }
       setTtsPrimed(true);
     } catch {}
   };
+
+  // ── 任一互動 -> 解鎖 audio / tts（iOS） ────────────────────────────────────
+  useEffect(() => {
+    const onUserGesture = () => {
+      primeTTS();
+      primeAudioAndTTS();
+    };
+    window.addEventListener('pointerdown', onUserGesture, { once: true, capture: true });
+    window.addEventListener('keydown', onUserGesture, { once: true, capture: true });
+    return () => {
+      window.removeEventListener('pointerdown', onUserGesture, { capture: true } as any);
+      window.removeEventListener('keydown', onUserGesture, { capture: true } as any);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── 段落切換：beep + TTS ───────────────────────────────────────────────────
   useEffect(() => {
@@ -157,34 +182,49 @@ function PlayInner() {
         gain.gain.setValueAtTime(0, ctx.currentTime);
         gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.start(); osc.stop(ctx.currentTime + 0.21);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.21);
       } catch {}
     })();
 
     const cur = timeline[idx];
     const next = timeline[idx + 1];
 
+    // 段落切換時，也順便 reset 最後 3 秒的紀錄
+    lastCountdownSpokenRef.current = null;
+
     if (ttsOn && voicesReady && ttsPrimed && cur) {
       const curText =
-        cur.kind === 'work'     ? `開始，${cur.label ?? '動作'}`
-      : cur.kind === 'rest'     ? '休息'
-      : cur.kind === 'interset' ? '休息'
-      : cur.kind === 'warmup'   ? '準備開始'
-      : cur.kind === 'cooldown' ? '收操'
-      : '';
+        cur.kind === 'work'
+          ? `開始，${cur.label ?? '動作'}`
+          : cur.kind === 'rest'
+            ? '休息'
+            : cur.kind === 'interset'
+              ? '休息'
+              : cur.kind === 'warmup'
+                ? '準備開始'
+                : cur.kind === 'cooldown'
+                  ? '收操'
+                  : '';
 
       if (curText) {
         speak(curText, 'zh-TW');
         if (next) {
           setTimeout(() => {
             const tip =
-              next.kind === 'work'     ? `下一個：${next.label}`
-            : next.kind === 'rest'     ? '下一個：休息'
-            : next.kind === 'interset' ? '下一個：休息'
-            : next.kind === 'warmup'   ? '下一個：準備'
-            : next.kind === 'cooldown' ? '下一個：收操'
-            : '';
+              next.kind === 'work'
+                ? `下一個：${next.label}`
+                : next.kind === 'rest'
+                  ? '下一個：休息'
+                  : next.kind === 'interset'
+                    ? '下一個：休息'
+                    : next.kind === 'warmup'
+                      ? '下一個：準備'
+                      : next.kind === 'cooldown'
+                        ? '下一個：收操'
+                        : '';
             if (tip && isTtsEnabled()) speak(tip, 'zh-TW');
           }, 500);
         }
@@ -201,14 +241,17 @@ function PlayInner() {
     let duration = timeline[idx]?.ms ?? 0;
 
     const loop = (t: number) => {
-      if (paused) { raf.current = requestAnimationFrame(loop); return; }
+      if (paused) {
+        raf.current = requestAnimationFrame(loop);
+        return;
+      }
       const elapsed = t - start;
       const left = Math.max(duration - elapsed, 0);
       setMsLeft(left);
 
       if (left <= 0) {
         if (idx + 1 < timeline.length) {
-          setIdx(i => i + 1);
+          setIdx((i) => i + 1);
           start = t;
           duration = timeline[idx + 1]?.ms ?? 0;
           raf.current = requestAnimationFrame(loop);
@@ -220,7 +263,9 @@ function PlayInner() {
           finishedRef.current = true;
           // 完成後 1 秒自動返回上一頁（保留簡單體驗）
           setTimeout(() => {
-            try { router.back(); } catch {}
+            try {
+              router.back();
+            } catch {}
           }, 1000);
         }
       } else {
@@ -230,8 +275,34 @@ function PlayInner() {
 
     setMsLeft(duration);
     raf.current = requestAnimationFrame(loop);
-    return () => { if (raf.current !== null) cancelAnimationFrame(raf.current); raf.current = null; };
+    return () => {
+      if (raf.current !== null) cancelAnimationFrame(raf.current);
+      raf.current = null;
+    };
   }, [timeline, idx, paused, router]);
+
+  // ── 最後 3 秒：語音倒數（必須放在所有 early return 之前） ───────────────────
+  useEffect(() => {
+    if (!ttsOn || !voicesReady || !ttsPrimed) return;
+    if (!timeline.length) return;
+    if (paused) return;
+
+    const secLeft = Math.max(0, Math.ceil(msLeft / 1000));
+
+    // 大於 3 秒時重置，避免跨段落殘留
+    if (secLeft > 3) {
+      lastCountdownSpokenRef.current = null;
+      return;
+    }
+    if (secLeft <= 0) return;
+    if (secLeft !== 1 && secLeft !== 2 && secLeft !== 3) return;
+
+    if (lastCountdownSpokenRef.current === secLeft) return;
+    lastCountdownSpokenRef.current = secLeft;
+
+    // 用 TTS 講「3 / 2 / 1」，不 flush，避免把上一段提示整個清掉
+    speak(String(secLeft), 'zh-TW', { flush: false, rate: 1.0, pitch: 1.0 });
+  }, [msLeft, paused, ttsOn, voicesReady, ttsPrimed, timeline.length]);
 
   // ── 離開頁面：若尚未完成，記錄為 interrupted ────────────────────────────────
   useEffect(() => {
@@ -255,7 +326,12 @@ function PlayInner() {
       let totalRestMs = 0;
       for (const it of timeline) {
         if (it.kind === 'work') totalWorkMs += it.ms;
-        else if (it.kind === 'rest' || it.kind === 'interset' || it.kind === 'warmup' || it.kind === 'cooldown') {
+        else if (
+          it.kind === 'rest' ||
+          it.kind === 'interset' ||
+          it.kind === 'warmup' ||
+          it.kind === 'cooldown'
+        ) {
           totalRestMs += it.ms;
         }
       }
@@ -268,8 +344,10 @@ function PlayInner() {
         status,
         totalWorkSec: Math.round(totalWorkMs / 1000),
         totalRestSec: Math.round(totalRestMs / 1000),
-        roundsDone: workout.steps?.reduce((acc, s) => acc + (s.rounds ?? 1), 0) ?? null,
-        setsDone: workout.steps?.reduce((acc, s) => acc + (s.sets ?? 1), 0) ?? null,
+        roundsDone:
+          workout.steps?.reduce((acc, s) => acc + (s.rounds ?? 1), 0) ?? null,
+        setsDone:
+          workout.steps?.reduce((acc, s) => acc + (s.sets ?? 1), 0) ?? null,
         skippedSteps: null,
         notes: null,
         snapshot: {
@@ -289,12 +367,20 @@ function PlayInner() {
     }
   }
 
-  // ── guard 畫面 ─────────────────────────────────────────────────────────────
+  // ── guard 畫面（注意：所有 hooks 都已在上面宣告完） ────────────────────────
   if (!wid) {
-    return <div className="p-4 text-sm opacity-70"><BackButton /> 缺少參數 wid。</div>;
+    return (
+      <div className="p-4 text-sm opacity-70">
+        <BackButton /> 缺少參數 wid。
+      </div>
+    );
   }
   if (!workout || !timeline.length) {
-    return <div className="p-4"><BackButton /> Loading…</div>;
+    return (
+      <div className="p-4">
+        <BackButton /> Loading…
+      </div>
+    );
   }
 
   // ── 目前/下一段資訊 ─────────────────────────────────────────────────────────
@@ -302,40 +388,48 @@ function PlayInner() {
   const next = timeline[idx + 1];
 
   const title =
-    cur.kind === 'work'     ? (cur.label || 'WORK')
-  : cur.kind === 'rest'     ? 'REST'
-  : cur.kind === 'interset' ? 'REST'
-  : cur.kind === 'warmup'   ? 'PREPARE'
-  : 'COOLDOWN';
+    cur.kind === 'work'
+      ? cur.label || 'WORK'
+      : cur.kind === 'rest'
+        ? 'REST'
+        : cur.kind === 'interset'
+          ? 'REST'
+          : cur.kind === 'warmup'
+            ? 'PREPARE'
+            : 'COOLDOWN';
 
   const nextText = next
-    ? (next.kind === 'work'
-        ? `下一個：${next.label}`
-        : next.kind === 'rest' || next.kind === 'interset'
-          ? '下一個：REST'
-          : next.kind === 'warmup'
-            ? '下一個：WARMUP'
-            : '下一個：COOLDOWN')
+    ? next.kind === 'work'
+      ? `下一個：${next.label}`
+      : next.kind === 'rest' || next.kind === 'interset'
+        ? '下一個：REST'
+        : next.kind === 'warmup'
+          ? '下一個：WARMUP'
+          : '下一個：COOLDOWN'
     : '完成';
 
   const total = Math.max(1, cur.ms);
-  const progress = 1 - (msLeft / total);
+  const progress = 1 - msLeft / total;
   const secondsLeft = Math.max(0, Math.ceil(msLeft / 1000));
 
   // ── 依標籤推導影片路徑（僅 work 顯示） ─────────────────────────────────────
   const rawLabel = cur?.label || '';
   const englishHead = rawLabel.split('\n')[0]?.trim() || '';
-  const slug =
-    englishHead
-      .toLowerCase()
-      .replace(/['’]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+  const slug = englishHead
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
   const base = cur.kind === 'work' && slug ? `/hiit/media/${slug}` : '';
 
   // ── UI ─────────────────────────────────────────────────────────────────────
-  const withPrime = <T extends (...args: any[]) => any>(fn: T) =>
-    (...args: Parameters<T>) => { primeTTS(); primeAudioAndTTS(); return fn(...args); };
+  const withPrime =
+    <T extends (...args: any[]) => any>(fn: T) =>
+    (...args: Parameters<T>) => {
+      primeTTS();
+      primeAudioAndTTS();
+      return fn(...args);
+    };
 
   return (
     <div className="p-6 flex flex-col items-center text-white relative">
@@ -351,7 +445,11 @@ function PlayInner() {
               setTtsOn(nv);
               setTtsEnabled(nv);
             }}
-            className={`px-2 py-1 rounded-lg border ${ttsOn ? 'border-green-400 text-green-400' : 'border-white/40 text-white/60'}`}
+            className={`px-2 py-1 rounded-lg border ${
+              ttsOn
+                ? 'border-green-400 text-green-400'
+                : 'border-white/40 text-white/60'
+            }`}
             aria-pressed={ttsOn}
             title={voicesReady ? '' : '語音載入中'}
           >
@@ -363,10 +461,25 @@ function PlayInner() {
       <PlayerHUD title={title} subtitle={workout?.name || cur.label} />
 
       {/* 圓環：中間放下一個 + 倒數秒數 */}
-      <RingCountdown progress={progress} size={240} stroke={16} color={cur.kind === 'work' ? '#f43f5e' : (cur.kind === 'rest' || cur.kind === 'interset') ? '#22d3ee' : cur.kind === 'warmup' ? '#facc15' : '#9ca3af'}>
+      <RingCountdown
+        progress={progress}
+        size={240}
+        stroke={16}
+        color={
+          cur.kind === 'work'
+            ? '#f43f5e'
+            : cur.kind === 'rest' || cur.kind === 'interset'
+              ? '#22d3ee'
+              : cur.kind === 'warmup'
+                ? '#facc15'
+                : '#9ca3af'
+        }
+      >
         <div className="flex flex-col items-center justify-center leading-tight">
           <div className="text-[11px] sm:text-xs opacity-75">{nextText}</div>
-          <div className="text-5xl sm:text-6xl font-semibold tabular-nums mt-1">{secondsLeft}s</div>
+          <div className="text-5xl sm:text-6xl font-semibold tabular-nums mt-1">
+            {secondsLeft}s
+          </div>
         </div>
       </RingCountdown>
 
@@ -387,7 +500,7 @@ function PlayInner() {
             onError={() => setVideoOk(false)}
             style={{ display: videoOk ? 'block' : 'none', borderRadius: 12 }}
           >
-            <source src={`${base}.mp4`}  type="video/mp4" />
+            <source src={`${base}.mp4`} type="video/mp4" />
             <source src={`${base}.webm`} type="video/webm" />
           </video>
         </div>
@@ -395,15 +508,32 @@ function PlayInner() {
 
       {/* 圓環下方：提示（若查得到） */}
       {cueText && (
-        <div className="mt-3 text-sm sm:text-base text-white/80 text-center max-w-md">
+        <div className="mt-3 text-sm sm:text-base text白色/80 text-center max-w-md">
           {cueText}
         </div>
       )}
 
       <div className="mt-6 flex gap-3">
-        <button onClick={withPrime(() => setIdx(i => Math.max(i - 1, 0)))} className="px-3 py-2 rounded-xl border border-white">上一段</button>
-        <button onClick={withPrime(() => setIdx(i => Math.min(i + 1, timeline.length - 1)))} className="px-3 py-2 rounded-xl border border-white">跳過</button>
-        <button onClick={withPrime(() => setPaused(p => !p))} className="px-3 py-2 rounded-xl border border-white">{paused ? '繼續' : '暫停'}</button>
+        <button
+          onClick={withPrime(() => setIdx((i) => Math.max(i - 1, 0)))}
+          className="px-3 py-2 rounded-xl border border-white"
+        >
+          上一段
+        </button>
+        <button
+          onClick={withPrime(() =>
+            setIdx((i) => Math.min(i + 1, timeline.length - 1)),
+          )}
+          className="px-3 py-2 rounded-xl border border-white"
+        >
+          跳過
+        </button>
+        <button
+          onClick={withPrime(() => setPaused((p) => !p))}
+          className="px-3 py-2 rounded-xl border border-white"
+        >
+          {paused ? '繼續' : '暫停'}
+        </button>
       </div>
     </div>
   );
@@ -411,7 +541,13 @@ function PlayInner() {
 
 export default function Play() {
   return (
-    <Suspense fallback={<div className="p-4 text-white"><BackButton /> Loading…</div>}>
+    <Suspense
+      fallback={
+        <div className="p-4 text-white">
+          <BackButton /> Loading…
+        </div>
+      }
+    >
       <PlayInner />
     </Suspense>
   );

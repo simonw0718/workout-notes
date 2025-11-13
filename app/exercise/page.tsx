@@ -74,15 +74,69 @@ function ExerciseInner() {
   const [flash, setFlash] = useState(false);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /** 倒數結束提示音效 */
+  const beepRef = useRef<HTMLAudioElement | null>(null);
+  const audioUnlockedRef = useRef(false);
+
   const showToast = (msg: string) => {
     setToast(msg);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(""), 3000);
   };
+
   const triggerFlash = () => {
     setFlash(true);
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
     flashTimerRef.current = setTimeout(() => setFlash(false), 500);
+  };
+
+  /** 初始化提示音（只建立一次） */
+  useEffect(() => {
+    const audio = new Audio("/sounds/rest-finish-beep.mp3");
+    audio.preload = "auto";
+    beepRef.current = audio;
+
+    return () => {
+      if (beepRef.current) {
+        beepRef.current.pause();
+        // 某些瀏覽器需要清掉 src 才不會報錯
+        beepRef.current.src = "";
+        beepRef.current = null;
+      }
+    };
+  }, []);
+
+  /** iOS 等瀏覽器需要使用者互動來解鎖音訊 */
+  const unlockAudio = () => {
+    if (audioUnlockedRef.current) return;
+    const audio = beepRef.current;
+    if (!audio) return;
+
+    audio.volume = 1;
+    audio
+      .play()
+      .then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audioUnlockedRef.current = true;
+      })
+      .catch(() => {
+        // 第一次可能會被擋，失敗就算了，之後再試
+      });
+  };
+
+  /** 倒數結束時播放提示音 */
+  const playBeep = () => {
+    const audio = beepRef.current;
+    if (!audio) return;
+    try {
+      audio.currentTime = 0;
+      audio.play().catch((err) => {
+        console.warn("[Exercise] beep play failed:", err);
+      });
+    } catch (err) {
+      console.warn("[Exercise] beep play error:", err);
+    }
   };
 
   const toggleUnit = () => {
@@ -258,6 +312,9 @@ function ExerciseInner() {
   };
 
   const startTimer = (secs?: number) => {
+    // 使用者按下任一啟動按鈕時順便嘗試解鎖音訊
+    unlockAudio();
+
     // 若有指定秒數就用它；否則以「剩餘秒數 > 0 ? 剩餘秒數 : 目標秒數」
     const base = Number.isFinite(secs as number)
       ? Math.max(1, Math.floor(secs as number))
@@ -273,9 +330,10 @@ function ExerciseInner() {
         if (prev <= 1) {
           clearTick();
           setRunning(false);
-          // 完成提醒（不使用震動；用 Toast + 閃爍）
+          // 完成提醒：螢幕閃爍 + Toast + 聲音
           triggerFlash();
           showToast("休息結束！開始下一組吧 👊");
+          playBeep();
           return 0;
         }
         return prev - 1;
@@ -351,7 +409,9 @@ function ExerciseInner() {
             <div className="flex flex-wrap gap-2">
               {lastSets.map((s) => (
                 <span key={s.id} className="px-2 py-1 rounded-lg bg-white/10 text-sm">
-                  {s.weight}{s.unit ?? "lb"}×{s.reps}{s.rpe != null ? ` RPE${s.rpe}` : ""}
+                  {s.weight}
+                  {s.unit ?? "lb"}×{s.reps}
+                  {s.rpe != null ? ` RPE${s.rpe}` : ""}
                 </span>
               ))}
             </div>
@@ -399,7 +459,7 @@ function ExerciseInner() {
               <div className="grid grid-cols-[72px_1fr_72px] gap-2 items-center">
                 <button
                   type="button"
-                  className="h-10 rounded-lg border border-white/50 px-3 font-medium hover:bg-white/10"
+                  className="h-10 rounded-lg border border-white/50 px-3 font-medium hover:bg白色/10"
                   onClick={() => setReps((prev) => Math.max(0, Number(prev) - 1))}
                 >
                   −1
@@ -407,13 +467,13 @@ function ExerciseInner() {
                 <input
                   type="number"
                   inputMode="numeric"
-                  className="h-10 w-full rounded-lg bg-white text-black text-center px-3"
+                  className="h-10 w-full rounded-lg bg-white text黑色 text-center px-3"
                   value={reps}
                   onChange={(e) => setReps(e.target.value === "" ? "" : Number(e.target.value))}
                 />
                 <button
                   type="button"
-                  className="h-10 rounded-lg border border-white/50 px-3 font-medium hover:bg-white/10"
+                  className="h-10 rounded-lg border border-white/50 px-3 font-medium hover:bg白色/10"
                   onClick={() => setReps((prev) => Number(prev) + 1)}
                 >
                   +1
