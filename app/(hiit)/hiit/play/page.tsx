@@ -13,12 +13,29 @@ import {
   type HiitWorkoutDto,
   listHiitExercises,
 } from '@/lib/hiit/api';
-import { speak, isTtsEnabled, setTtsEnabled, cancelSpeak, primeTTS } from '@/lib/hiit/tts';
+import { isTtsEnabled, setTtsEnabled } from '@/lib/hiit/tts';
+import {
+  playVoice,
+  playWorkoutStart,
+  playFinishRandom,
+  playWorkStart,
+  primeVoices,
+} from '@/lib/hiit/voice';
 
-// 從 label 裡只取英文（第一行），給 TTS 使用
+// 從 label 裡只取英文（第一行），給畫面顯示用
 function getEnglishName(label?: string | null): string {
   if (!label) return '';
   return label.split('\n')[0]?.trim() || '';
+}
+
+// label -> slug，跟影片檔名一樣
+function getSlugFromLabel(label?: string | null): string {
+  const english = getEnglishName(label);
+  return english
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function PlayInner() {
@@ -36,10 +53,8 @@ function PlayInner() {
   // 是否已按下真正的「開始」鍵
   const [started, setStarted] = useState(false);
 
-  // TTS 狀態
+  // 語音（mp3）開關：沿用原本 TTS 的 localStorage key
   const [ttsOn, setTtsOn] = useState(isTtsEnabled());
-  const [voicesReady, setVoicesReady] = useState(false);
-  const [ttsPrimed, setTtsPrimed] = useState(false);
 
   // 目前步驟的提示（cue）
   const [cueText, setCueText] = useState<string>('');
@@ -106,84 +121,29 @@ function PlayInner() {
     setVideoOk(false);
   }, [idx]);
 
-  // ── TTS voices 載入 & 可見度恢復 ───────────────────────────────────────────
-  useEffect(() => {
-    const setReady = () => setVoicesReady(true);
-    if (typeof window !== 'undefined') {
-      try {
-        const s = window.speechSynthesis;
-        if (s) {
-          if (s.getVoices().length > 0) setReady();
-          else s.addEventListener('voiceschanged', setReady, { once: true });
-
-          const onVis = () => {
-            try {
-              s.resume?.();
-            } catch {}
-          };
-          document.addEventListener('visibilitychange', onVis);
-
-          return () => {
-            document.removeEventListener('visibilitychange', onVis);
-            // @ts-ignore
-            s.removeEventListener?.('voiceschanged', setReady);
-          };
-        }
-      } catch {}
-    }
-  }, []);
-
-  const primeAudioAndTTS = () => {
-    try {
-      if (!beepCtx.current) {
-        // @ts-ignore
-        const AC = window.AudioContext || window.webkitAudioContext;
-        beepCtx.current = new AC();
-      }
-      beepCtx.current?.resume?.();
+  // ── 建立 / 取得 beep 用的 AudioContext ──────────────────────────────────────
+  const ensureBeepContext = () => {
+    if (typeof window === 'undefined') return;
+    if (!beepCtx.current) {
       // @ts-ignore
-      const s: SpeechSynthesis = window.speechSynthesis;
-      if (s) {
-        s.resume?.();
-        const u = new SpeechSynthesisUtterance('\u200B'); // 無聲
-        u.volume = 0;
-        u.rate = 1;
-        u.pitch = 1;
-        u.lang = 'en-US';
-        s.speak(u);
-        s.cancel();
-      }
-      setTtsPrimed(true);
-    } catch {}
+      const AC = window.AudioContext || window.webkitAudioContext;
+      beepCtx.current = new AC();
+    }
+    beepCtx.current?.resume?.();
   };
 
-  // ── 任一互動 -> 解鎖 audio / tts（iOS） ────────────────────────────────────
-  useEffect(() => {
-    const onUserGesture = () => {
-      primeTTS();
-      primeAudioAndTTS();
-    };
-    window.addEventListener('pointerdown', onUserGesture, { once: true, capture: true });
-    window.addEventListener('keydown', onUserGesture, { once: true, capture: true });
-    return () => {
-      window.removeEventListener('pointerdown', onUserGesture, { capture: true } as any);
-      window.removeEventListener('keydown', onUserGesture, { capture: true } as any);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ── 段落切換：beep + TTS（去重，避免 Rest 重複） ────────────────────────────
+  // ── 段落切換：beep + 語音（mp3） ───────────────────────────────────────────
   useEffect(() => {
     if (!timeline.length) return;
     if (!started) return;
 
     const cur = timeline[idx];
-    const next = timeline[idx + 1];
     if (!cur) return;
 
-    const segKey = `${idx}-${cur.kind}`;
+    // 把 ttsOn 狀態也納入 key：
+    // 這樣「同一段，但之前是關、現在打開」時會再播一次語音
+    const segKey = `${idx}-${cur.kind}-${ttsOn ? 'on' : 'off'}`;
     if (spokenSegmentRef.current === segKey) {
-      // React StrictMode 會多跑一次 effect，在這裡直接擋掉重複
       return;
     }
     spokenSegmentRef.current = segKey;
@@ -191,13 +151,9 @@ function PlayInner() {
     // beep
     (async () => {
       try {
-        if (!beepCtx.current) {
-          // @ts-ignore
-          const AC = window.AudioContext || window.webkitAudioContext;
-          beepCtx.current = new AC();
-        }
-        await beepCtx.current.resume?.();
-        const ctx = beepCtx.current!;
+        ensureBeepContext();
+        const ctx = beepCtx.current;
+        if (!ctx) return;
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
@@ -215,46 +171,19 @@ function PlayInner() {
     // 段落切換時，也順便 reset 倒數紀錄
     lastCountdownSpokenRef.current = null;
 
-    if (ttsOn && voicesReady && ttsPrimed) {
-      const curName = getEnglishName(cur.label);
-      let curText = '';
+    if (!ttsOn) return;
 
-      if (cur.kind === 'work') {
-        curText = `Start: ${curName || 'work'}. Stay strong.`;
-      } else if (cur.kind === 'rest' || cur.kind === 'interset') {
-        curText = 'Rest. Breathe and reset.';
-      } else if (cur.kind === 'warmup') {
-        curText = 'Warm-up. Get your body ready.';
-      } else if (cur.kind === 'cooldown') {
-        curText = 'Cooldown. Nice and easy.';
-      }
-
-      if (curText) {
-        speak(curText, 'en-US', { flush: true, rate: 0.95 });
-      }
-
-      // 下一個提示：只講 work / warmup / cooldown，不講 rest
-      if (next) {
-        const nextName = getEnglishName(next.label);
-        setTimeout(() => {
-          if (!isTtsEnabled()) return;
-          let tip = '';
-          if (next.kind === 'work') {
-            tip = `Next: ${nextName || 'work'}.`;
-          } else if (next.kind === 'warmup') {
-            tip = 'Next: warm-up.';
-          } else if (next.kind === 'cooldown') {
-            tip = 'Next: cooldown.';
-          }
-          if (tip) {
-            speak(tip, 'en-US', { flush: false, rate: 0.95 });
-          }
-        }, 500);
-      }
+    if (cur.kind === 'work') {
+      const slug = getSlugFromLabel(cur.label);
+      playWorkStart(slug);
+    } else if (cur.kind === 'rest' || cur.kind === 'interset') {
+      playVoice('rest_normal');
+    } else if (cur.kind === 'warmup') {
+      playVoice('warmup_start');
+    } else if (cur.kind === 'cooldown') {
+      playVoice('cooldown_start');
     }
-    return () => cancelSpeak();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, timeline, ttsOn, voicesReady, ttsPrimed, started]);
+  }, [idx, timeline, started, ttsOn]);
 
   // ── 計時主迴圈 ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -285,14 +214,8 @@ function PlayInner() {
           raf.current = null;
 
           // 完成語音（隨機一句）
-          if (ttsOn && voicesReady && ttsPrimed) {
-            const choices = [
-              'Workout complete. Nice job.',
-              'Workout complete. Great work today.',
-              'Workout complete. Well done.',
-            ];
-            const msg = choices[Math.floor(Math.random() * choices.length)];
-            speak(msg, 'en-US', { flush: false, rate: 0.95 });
+          if (ttsOn) {
+            playFinishRandom();
           }
 
           void safeSaveHistory('completed');
@@ -315,11 +238,11 @@ function PlayInner() {
       if (raf.current !== null) cancelAnimationFrame(raf.current);
       raf.current = null;
     };
-  }, [timeline, idx, paused, router, started, ttsOn, voicesReady, ttsPrimed]);
+  }, [timeline, idx, paused, router, started, ttsOn]);
 
-  // ── 倒數語音：10 秒 + 最後 3 秒 ─────────────────────────────────────────────
+  // ── 倒數語音：10 秒 + 最後 3 秒（mp3 版） ───────────────────────────────────
   useEffect(() => {
-    if (!ttsOn || !voicesReady || !ttsPrimed) return;
+    if (!ttsOn) return;
     if (!timeline.length) return;
     if (!started) return;
     if (paused) return;
@@ -327,6 +250,7 @@ function PlayInner() {
     const next = timeline[idx + 1];
 
     const secLeft = Math.max(0, Math.ceil(msLeft / 1000));
+    console.log('[hiit] countdown secLeft =', secLeft);
 
     // 範圍外直接 reset
     if (secLeft <= 0 || secLeft > 10) {
@@ -340,27 +264,20 @@ function PlayInner() {
     if (lastCountdownSpokenRef.current === secLeft) return;
     lastCountdownSpokenRef.current = secLeft;
 
-    let text = '';
     if (secLeft === 10) {
-      text = 'Ten seconds left.';
+      playVoice('countdown_10');
     } else if (secLeft === 3) {
-      text = 'Three.';
+      playVoice('countdown_3');
     } else if (secLeft === 2) {
-      text = 'Two.';
+      playVoice('countdown_2');
     } else if (secLeft === 1) {
-      // 最後一秒加一點引導：看下一段是不是 work
       if (next && next.kind === 'work') {
-        text = 'One, get ready.';
+        playVoice('countdown_1_work');
       } else {
-        text = 'One, rest.';
+        playVoice('countdown_1_rest');
       }
     }
-
-    if (text) {
-      // 不 flush，避免把前一段提示整個清掉
-      speak(text, 'en-US', { flush: false, rate: 1.0, pitch: 1.0 });
-    }
-  }, [msLeft, paused, ttsOn, voicesReady, ttsPrimed, timeline, idx, started]);
+  }, [msLeft, paused, ttsOn, timeline, idx, started]);
 
   // ── 離開頁面：若尚未完成，記錄為 interrupted ────────────────────────────────
   useEffect(() => {
@@ -418,7 +335,6 @@ function PlayInner() {
         deletedAt: null,
       });
     } catch (e) {
-      // 不打擾使用者；console 記錄即可
       console.error('[history] save failed:', e);
     } finally {
       savingRef.current = false;
@@ -473,38 +389,30 @@ function PlayInner() {
     : Math.round(total / 1000);
 
   // ── 依標籤推導影片路徑（僅 work 顯示） ─────────────────────────────────────
-  const rawLabel = cur?.label || '';
-  const englishHead = rawLabel.split('\n')[0]?.trim() || '';
-  const slug = englishHead
-    .toLowerCase()
-    .replace(/['’]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+  const slug = getSlugFromLabel(cur.label);
   const base = cur.kind === 'work' && slug ? `/hiit/media/${slug}` : '';
 
-  // ── UI ─────────────────────────────────────────────────────────────────────
-  const withPrime =
-    <T extends (...args: any[]) => any>(fn: T) =>
-    (...args: Parameters<T>) => {
-      primeTTS();
-      primeAudioAndTTS();
-      return fn(...args);
-    };
-
+  // ── UI helper：開始訓練 ─────────────────────────────────────────────────────
   const handleStartClick = () => {
     if (!started) {
-      primeTTS();
-      primeAudioAndTTS();
-      if (!ttsOn) {
-        setTtsOn(true);
-        setTtsEnabled(true);
-      }
+      // 1) 先解鎖 WebAudio（beep）
+      ensureBeepContext();
+      // 2) 再解鎖 HTMLAudio 聲音檔（特別是 iOS）
+      primeVoices();
+
+      // 不強迫改變使用者的語音設定，只是開始計時
       startedAtRef.current = Date.now();
       setStarted(true);
       setPaused(false);
+
+      // 如果使用者有開啟語音，就播「開始訓練」那句
+      if (ttsOn) {
+        playWorkoutStart();
+      }
     }
   };
 
+  // ── UI ─────────────────────────────────────────────────────────────────────
   return (
     <div className="p-6 flex flex-col items-center text-white relative">
       <div className="self-start mb-2 flex items-center gap-2 w-full">
@@ -513,8 +421,6 @@ function PlayInner() {
           <label className="text-sm opacity-80">語音播報</label>
           <button
             onClick={() => {
-              primeTTS();
-              primeAudioAndTTS();
               const nv = !ttsOn;
               setTtsOn(nv);
               setTtsEnabled(nv);
@@ -525,7 +431,6 @@ function PlayInner() {
                 : 'border-white/40 text-white/60'
             }`}
             aria-pressed={ttsOn}
-            title={voicesReady ? '' : '語音載入中'}
           >
             {ttsOn ? '開' : '關'}
           </button>
@@ -615,29 +520,29 @@ function PlayInner() {
 
       <div className="mt-6 flex gap-3">
         <button
-          onClick={withPrime(() => setIdx((i) => Math.max(i - 1, 0)))}
+          onClick={() => setIdx((i) => Math.max(i - 1, 0))}
           className="px-3 py-2 rounded-xl border border-white disabled:opacity-40"
           disabled={!started}
         >
           上一段
         </button>
         <button
-          onClick={withPrime(() =>
-            setIdx((i) => Math.min(i + 1, timeline.length - 1)),
-          )}
+          onClick={() =>
+            setIdx((i) => Math.min(i + 1, timeline.length - 1))
+          }
           className="px-3 py-2 rounded-xl border border-white disabled:opacity-40"
           disabled={!started}
         >
           跳過
         </button>
         <button
-          onClick={withPrime(() => {
+          onClick={() => {
             if (!started) {
               handleStartClick();
             } else {
               setPaused((p) => !p);
             }
-          })}
+          }}
           className="px-3 py-2 rounded-xl border border-white"
         >
           {!started ? '開始' : paused ? '繼續' : '暫停'}
