@@ -156,12 +156,9 @@ export default function Page() {
 
   return (
     <div className="p-4 text-white">
-      {/* 第一列：標題置中 + 右側返回 Workout（同一行） */}
-      <div className="relative mb-8 sm:mb-4">
-        <h1 className="text-2xl font-semibold font-title absolute left-1/2 -translate-x-1/2">HIIT</h1>
-        <div className="flex justify-end">
-          <Link href="/" className="text-sm text-white/70 hover:text-white transition">← Workout</Link>
-        </div>
+      {/* 第一列：標題置中 */}
+      <div className="mb-8 sm:mb-4">
+        <h1 className="text-2xl font-semibold font-title text-center">HIIT</h1>
       </div>
 
       {/* 第二列：右側工具列（歷史在動作庫左邊） */}
@@ -318,11 +315,13 @@ export default function Page() {
           )}
         </ul>
       )}
-
       {/* === 同步 Modal === */}
       {syncOpen && (
         <div className="fixed inset-0 z-50" aria-modal="true" role="dialog">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setSyncOpen(false)} />
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setSyncOpen(false)}
+          />
           <div className="absolute inset-0 grid place-items-center p-4">
             <div className="w-full max-w-md rounded-2xl border border-white/15 bg-black/90 backdrop-blur shadow-xl p-4 sm:p-5">
               <div className="pb-3 border-b border-white/10">
@@ -337,7 +336,7 @@ export default function Page() {
                     type="checkbox"
                     className="size-4 accent-white"
                     checked={overwrite}
-                    onChange={(e)=>setOverwrite(e.target.checked)}
+                    onChange={(e) => setOverwrite(e.target.checked)}
                   />
                 </label>
 
@@ -371,6 +370,16 @@ export default function Page() {
           </div>
         </div>
       )}
+
+      {/* 回到 HOME */}
+      <div className="mt-10 p-6 text-center border-t border-neutral-800">
+        <Link
+          href="/"
+          className="inline-block px-4 py-2 rounded-xl border border-white text-white bg-black hover:opacity-80"
+        >
+          HOME
+        </Link>
+      </div>
     </div>
   );
 }
