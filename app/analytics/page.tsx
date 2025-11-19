@@ -17,6 +17,13 @@ import {
 import { getDB, listAllSets } from "@/lib/db";
 import type { Exercise, SetRecord } from "@/lib/models/types";
 
+/**
+ * Analytics 視覺化：
+ * - 所有資料直接從 IndexedDB 讀取
+ * - 只做本地運算，不會呼叫任何遠端 API
+ * - 完全離線模式下依然可用（只是資料不會更新而已）
+ */
+
 /** 把 timestamp 轉成 YYYY-MM-DD */
 function toDateKey(ts?: number) {
   if (!ts) return "";
@@ -97,7 +104,7 @@ export default function AnalyticsPage() {
           {ex.name}
         </option>
       )),
-    [exMap],
+    [exMap]
   );
 
   return (
@@ -120,13 +127,7 @@ export default function AnalyticsPage() {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line
-                type="monotone"
-                dataKey="vol"
-                name="總量"
-                dot={false}
-                stroke="#2563eb"
-              />
+              <Line type="monotone" dataKey="vol" name="總量" dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -153,13 +154,7 @@ export default function AnalyticsPage() {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line
-                type="monotone"
-                dataKey="max"
-                name="最大重量"
-                dot={false}
-                stroke="#10b981"
-              />
+              <Line type="monotone" dataKey="max" name="最大重量" dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>

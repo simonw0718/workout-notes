@@ -1,3 +1,4 @@
+// app/sync/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -8,7 +9,12 @@ import {
   clearTransferLogs,
   listAllExercises,
 } from "@/lib/db";
-import type { ExportBundleV1, Preset, ImportPlanDetailed, ImportDecision } from "@/lib/models/presets";
+import type {
+  ExportBundleV1,
+  Preset,
+  ImportPlanDetailed,
+  ImportDecision,
+} from "@/lib/models/presets";
 import {
   tryShareFile as trySharePresets,
   triggerDownload as downloadPresets,
@@ -25,6 +31,13 @@ import {
   applyImportHistory,
 } from "@/lib/export/history";
 
+/**
+ * 資料搬運中心：
+ * - 完全基於 IndexedDB + File / Web Share API
+ * - 不呼叫任何遠端 API，因此在離線模式下依然可用
+ * - 如果你未來真的要做雲端同步，可以另外開新頁，不用改這裡
+ */
+
 export default function SyncPage() {
   return (
     <main className="p-6 max-w-2xl mx-auto space-y-8">
@@ -38,7 +51,10 @@ export default function SyncPage() {
           >
             🚨 偵錯
           </Link>
-          <Link href="/" className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50">
+          <Link
+            href="/"
+            className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50"
+          >
             回首頁
           </Link>
         </div>
@@ -66,15 +82,22 @@ function PresetsCard() {
   const [localEx, setLocalEx] = useState<any[] | null>(null);
 
   // B. 匯出預覽
-  const [pendingExport, setPendingExport] = useState<{ bundle: ExportBundleV1; blob: Blob; filename: string } | null>(null);
+  const [pendingExport, setPendingExport] = useState<{
+    bundle: ExportBundleV1;
+    blob: Blob;
+    filename: string;
+  } | null>(null);
 
   // C. 匯入預覽（含 diff 與策略）
   const [planDetail, setPlanDetail] = useState<ImportPlanDetailed | null>(null);
   const [lastBundle, setLastBundle] = useState<ExportBundleV1 | null>(null);
   const [defaultAdd, setDefaultAdd] = useState<ImportDecision>("overwrite");
-  const [defaultUpdate, setDefaultUpdate] = useState<ImportDecision>("overwrite");
+  const [defaultUpdate, setDefaultUpdate] =
+    useState<ImportDecision>("overwrite");
   const [defaultSame, setDefaultSame] = useState<ImportDecision>("skip");
-  const [overrides, setOverrides] = useState<Record<string, ImportDecision>>({});
+  const [overrides, setOverrides] = useState<Record<string, ImportDecision>>(
+    {}
+  );
 
   useEffect(() => {
     (async () => {
@@ -115,7 +138,8 @@ function PresetsCard() {
           count: bundle.items.length,
           filename,
           source: shared ? "share" : "download",
-          deviceUA: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
+          deviceUA:
+            typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
           notes: "presets export confirmed",
         });
       } catch {}
@@ -138,7 +162,9 @@ function PresetsCard() {
       const p = await buildImportDiffsByName(bundle.items);
       setPlanDetail(p);
       setOverrides({});
-      setMsg(`預覽完成：新增 ${p.summary.add}、更新 ${p.summary.update}、相同 ${p.summary.same}`);
+      setMsg(
+        `預覽完成：新增 ${p.summary.add}、更新 ${p.summary.update}、相同 ${p.summary.same}`
+      );
     } catch (e: any) {
       setPlanDetail(null);
       setLastBundle(null);
@@ -170,7 +196,8 @@ function PresetsCard() {
           type: "import",
           count: planDetail.diffs.length,
           source: "paste",
-          deviceUA: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
+          deviceUA:
+            typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
           notes: "presets import applied",
         });
       } catch {}
@@ -187,11 +214,16 @@ function PresetsCard() {
 
       {/* A. 本機動作清單（顯示） */}
       <div className="text-sm">
-        <div>本機動作筆數：<b>{localEx ? localEx.length : "…"}</b></div>
+        <div>
+          本機動作筆數：<b>{localEx ? localEx.length : "…"}</b>
+        </div>
         {localEx && localEx.length > 0 && (
           <ul className="mt-1 text-sm list-disc pl-5 max-h-32 overflow-y-auto">
             {localEx.map((e: any) => (
-              <li key={String(e.id)}>{e.name}（{e.defaultWeight ?? "-"} {e.defaultUnit ?? "kg"} × {e.defaultReps ?? "-"}）</li>
+              <li key={String(e.id)}>
+                {e.name}（{e.defaultWeight ?? "-"} {e.defaultUnit ?? "kg"} ×{" "}
+                {e.defaultReps ?? "-"}）
+              </li>
             ))}
           </ul>
         )}
@@ -210,11 +242,14 @@ function PresetsCard() {
           </button>
         ) : (
           <div className="space-y-2">
-            <div className="text-sm">預覽：共 <b>{pendingExport.bundle.items.length}</b> 筆</div>
+            <div className="text-sm">
+              預覽：共 <b>{pendingExport.bundle.items.length}</b> 筆
+            </div>
             <ul className="text-sm list-disc pl-5 max-h-40 overflow-y-auto">
-              {pendingExport.bundle.items.map((p) => (
+              {pendingExport.bundle.items.map((p: Preset) => (
                 <li key={p.uuid}>
-                  {p.name}（{p.default_weight ?? "-"} {p.unit} × {p.default_reps ?? "-"}）
+                  {p.name}（{p.default_weight ?? "-"} {p.unit} ×{" "}
+                  {p.default_reps ?? "-"}）
                 </li>
               ))}
             </ul>
@@ -264,12 +299,26 @@ function PresetsCard() {
         {planDetail && (
           <div className="space-y-3">
             <div className="text-sm text-gray-800">
-              預覽結果：新增 <b>{planDetail.summary.add}</b>、更新 <b>{planDetail.summary.update}</b>、相同 <b>{planDetail.summary.same}</b>
+              預覽結果：新增 <b>{planDetail.summary.add}</b>、更新{" "}
+              <b>{planDetail.summary.update}</b>、相同{" "}
+              <b>{planDetail.summary.same}</b>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
-              <StrategySelect label="新增" value={defaultAdd} onChange={setDefaultAdd} />
-              <StrategySelect label="更新" value={defaultUpdate} onChange={setDefaultUpdate} />
-              <StrategySelect label="相同" value={defaultSame} onChange={setDefaultSame} />
+              <StrategySelect
+                label="新增"
+                value={defaultAdd}
+                onChange={setDefaultAdd}
+              />
+              <StrategySelect
+                label="更新"
+                value={defaultUpdate}
+                onChange={setDefaultUpdate}
+              />
+              <StrategySelect
+                label="相同"
+                value={defaultSame}
+                onChange={setDefaultSame}
+              />
             </div>
             <div className="text-sm mt-2">逐筆調整</div>
             <ul className="max-h-48 overflow-y-auto text-sm border rounded-lg">
@@ -277,7 +326,10 @@ function PresetsCard() {
                 const k = d.name;
                 const v = overrides[k] ?? "";
                 return (
-                  <li key={k} className="flex items-center justify-between px-3 py-2 border-b last:border-b-0">
+                  <li
+                    key={k}
+                    className="flex items-center justify-between px-3 py-2 border-b last:border-b-0"
+                  >
                     <div>
                       <b>{d.name}</b>{" "}
                       <span className="text-gray-500">[{d.status}]</span>
@@ -286,7 +338,9 @@ function PresetsCard() {
                       className="border rounded-lg px-2 py-1"
                       value={v}
                       onChange={(e) => {
-                        const val = (e.target.value || "") as ImportDecision | "";
+                        const val = (e.target.value || "") as
+                          | ImportDecision
+                          | "";
                         setOverrides((prev) => {
                           const next = { ...prev };
                           if (!val) delete next[k];
@@ -350,7 +404,10 @@ function HistoryCard() {
   // 匯入控制
   const [importText, setImportText] = useState("");
   const [overwrite, setOverwrite] = useState(false);
-  const canImport = useMemo(() => importText.trim().length > 0 && !busy, [importText, busy]);
+  const canImport = useMemo(
+    () => importText.trim().length > 0 && !busy,
+    [importText, busy]
+  );
 
   async function onPrepareExport() {
     try {
@@ -363,7 +420,9 @@ function HistoryCard() {
         sessionsCount: bundle.sessions.length,
         setsCount: bundle.sets.length,
       });
-      setMsg(`已產生匯出預覽：sessions ${bundle.sessions.length}、sets ${bundle.sets.length}`);
+      setMsg(
+        `已產生匯出預覽：sessions ${bundle.sessions.length}、sets ${bundle.sets.length}`
+      );
     } catch (e: any) {
       setMsg(`匯出預覽失敗：${e?.message ?? e}`);
     } finally {
@@ -410,15 +469,21 @@ function HistoryCard() {
       setBusy(true);
       setMsg("匯入中…");
       const bundle = await parseAndValidateHistory(importText);
-      const applied = await applyImportHistory({ bundle, overwriteExisting: overwrite });
+      const applied = await applyImportHistory({
+        bundle,
+        overwriteExisting: overwrite,
+      });
       setMsg(`完成：已寫入 ${applied} 筆。`);
       try {
         await addTransferLog({
           type: "import",
           count: applied,
           source: "paste",
-          deviceUA: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
-          notes: overwrite ? "history import (overwrite=true)" : "history import (overwrite=false)",
+          deviceUA:
+            typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
+          notes: overwrite
+            ? "history import (overwrite=true)"
+            : "history import (overwrite=false)",
         });
       } catch {}
       setImportText("");
@@ -447,8 +512,10 @@ function HistoryCard() {
         ) : (
           <div className="space-y-2">
             <div className="text-sm">
-              預覽：<b>{pendingExport.filename}</b><br />
-              sessions：{pendingExport.sessionsCount}，sets：{pendingExport.setsCount}
+              預覽：<b>{pendingExport.filename}</b>
+              <br />
+              sessions：{pendingExport.sessionsCount}，sets：
+              {pendingExport.setsCount}
             </div>
             <div className="flex gap-2">
               <button
@@ -550,7 +617,10 @@ function LogsCard() {
       <h2 className="text-lg font-bold">資料搬運紀錄</h2>
       <div className="flex items-center gap-2">
         <button
-          onClick={async () => { await clearTransferLogs(); setLogs([]); }}
+          onClick={async () => {
+            await clearTransferLogs();
+            setLogs([]);
+          }}
           className="px-3 py-2 rounded-xl border text-sm hover:bg-gray-50"
         >
           清除紀錄
@@ -564,17 +634,28 @@ function LogsCard() {
       </div>
       <ul className="text-sm border rounded-xl divide-y max-h-64 overflow-y-auto">
         {logs.map((l) => (
-          <li key={l.id} className="px-3 py-2 flex items-center justify-between">
+          <li
+            key={l.id}
+            className="px-3 py-2 flex items-center justify-between"
+          >
             <div>
-              <div className="font-medium">{l.type} · {l.count} 筆</div>
-              <div className="text-gray-500">{new Date(l.at).toLocaleString()}</div>
+              <div className="font-medium">
+                {l.type} · {l.count} 筆
+              </div>
+              <div className="text-gray-500">
+                {new Date(l.at).toLocaleString()}
+              </div>
             </div>
             <div className="text-right text-xs text-gray-500">
-              {l.filename ?? "-"}<br/>{l.source ?? "-"}
+              {l.filename ?? "-"}
+              <br />
+              {l.source ?? "-"}
             </div>
           </li>
         ))}
-        {logs.length === 0 && <li className="px-3 py-2 text-gray-500">目前沒有紀錄</li>}
+        {logs.length === 0 && (
+          <li className="px-3 py-2 text-gray-500">目前沒有紀錄</li>
+        )}
       </ul>
     </section>
   );
