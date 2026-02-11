@@ -151,9 +151,9 @@ function PreviewInner() {
           if (cancelled) break;
           v.src = u;
           v.load();                          // 觸發載入
-          try { await v.play(); } catch {}   // iOS 靜音可自動播，失敗就算了
+          try { await v.play(); } catch { }   // iOS 靜音可自動播，失敗就算了
           await waitFor(v, 1500);            // 等到能播或超時
-          try { v.pause(); } catch {}
+          try { v.pause(); } catch { }
           // 釋放來源（避免保留太多解碼緩衝）
           v.removeAttribute('src');
           v.load();
@@ -164,7 +164,16 @@ function PreviewInner() {
       }
     })();
 
-    return () => { cancelled = true; try { warmRef.current?.pause(); } catch {} };
+    return () => { cancelled = true; try { warmRef.current?.pause(); } catch { } };
+  }, [videoUrls]);
+
+  // —— Preload WebP images ——
+  useEffect(() => {
+    if (!videoUrls.length) return;
+    for (const u of videoUrls) {
+      const img = new Image();
+      img.src = u.replace('.webm', '.webp');
+    }
   }, [videoUrls]);
 
   const totalText = useMemo(() => {

@@ -165,7 +165,7 @@ function PlayInner() {
         gain.connect(ctx.destination);
         osc.start();
         osc.stop(ctx.currentTime + 0.21);
-      } catch {}
+      } catch { }
     })();
 
     // 段落切換時，也順便 reset 倒數紀錄
@@ -224,7 +224,7 @@ function PlayInner() {
           setTimeout(() => {
             try {
               router.back();
-            } catch {}
+            } catch { }
           }, 1000);
         }
       } else {
@@ -425,11 +425,10 @@ function PlayInner() {
               setTtsOn(nv);
               setTtsEnabled(nv);
             }}
-            className={`px-2 py-1 rounded-lg border ${
-              ttsOn
-                ? 'border-green-400 text-green-400'
-                : 'border-white/40 text-white/60'
-            }`}
+            className={`px-2 py-1 rounded-lg border ${ttsOn
+              ? 'border-green-400 text-green-400'
+              : 'border-white/40 text-white/60'
+              }`}
             aria-pressed={ttsOn}
           >
             {ttsOn ? '開' : '關'}
@@ -488,7 +487,7 @@ function PlayInner() {
 
           {/* 圓環下方：若為 work 才顯示；MP4 優先，WebM 後備 */}
           {base && (
-            <div className="mt-3">
+            <div className="mt-3 relative">
               <video
                 key={base}
                 width={180}
@@ -501,11 +500,23 @@ function PlayInner() {
                 onCanPlay={() => setVideoOk(true)}
                 onLoadedData={() => setVideoOk(true)}
                 onError={() => setVideoOk(false)}
-                style={{ display: videoOk ? 'block' : 'none', borderRadius: 12 }}
+                className={`transition-opacity duration-300 ${videoOk ? 'opacity-100' : 'opacity-0 absolute inset-0'}`}
+                style={{ borderRadius: 12, display: videoOk ? 'block' : 'none' }}
               >
                 <source src={`${base}.mp4`} type="video/mp4" />
                 <source src={`${base}.webm`} type="video/webm" />
               </video>
+
+              {/* WebP Fallback / Placeholder */}
+              {!videoOk && (
+                <img
+                  src={`${base}.webp`}
+                  alt={getEnglishName(cur.label)}
+                  width={180}
+                  height={180}
+                  className="rounded-xl object-cover"
+                />
+              )}
             </div>
           )}
 
@@ -516,7 +527,8 @@ function PlayInner() {
             </div>
           )}
         </>
-      )}
+      )
+      }
 
       <div className="mt-6 flex gap-3">
         <button
@@ -548,7 +560,7 @@ function PlayInner() {
           {!started ? '開始' : paused ? '繼續' : '暫停'}
         </button>
       </div>
-    </div>
+    </div >
   );
 }
 

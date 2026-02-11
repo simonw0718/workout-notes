@@ -4,10 +4,16 @@
     "primaryCategory": "cardio",
     "defaultMode": "time",
     "defaultValue": 30,
-    "movementType": ["跳躍"],
-    "trainingGoal": ["耐力"],
+    "movementType": [
+      "跳躍"
+    ],
+    "trainingGoal": [
+      "耐力"
+    ],
     "equipment": "無",
-    "bodyPart": ["全身"],
+    "bodyPart": [
+      "全身"
+    ],
     "cue": "保持穩定節奏，讓手腳自然打開與合上。",
     "coachNote": "站姿，腳併攏手放體側。雙腳向外跳開同時雙手經由側邊上舉過頭，回到起始姿勢算一次。保持胸口打開與穩定節奏，落地腳掌柔軟吸震，避免聳肩與塌腰。",
     "isBilateral": true
@@ -17,10 +23,18 @@
     "primaryCategory": "cardio",
     "defaultMode": "time",
     "defaultValue": 30,
-    "movementType": ["跳躍"],
-    "trainingGoal": ["爆發力", "協調性"],
+    "movementType": [
+      "跳躍"
+    ],
+    "trainingGoal": [
+      "爆發力",
+      "協調性"
+    ],
     "equipment": "無",
-    "bodyPart": ["腿", "核心"],
+    "bodyPart": [
+      "腿",
+      "核心"
+    ],
     "cue": "膝蓋抬至腰部高度，保持上身直立與穩定呼吸。",
     "coachNote": "直立，核心收緊。原地跑動並主動把膝蓋抬到腰部高度，手臂前後擺動協調。腳步輕快，落地以前腳掌吸震；避免身體後仰或膝蓋內夾。",
     "isBilateral": true
@@ -30,10 +44,17 @@
     "primaryCategory": "cardio",
     "defaultMode": "time",
     "defaultValue": 20,
-    "movementType": ["跳躍", "推"],
-    "trainingGoal": ["爆發力"],
+    "movementType": [
+      "跳躍",
+      "推"
+    ],
+    "trainingGoal": [
+      "爆發力"
+    ],
     "equipment": "無",
-    "bodyPart": ["全身"],
+    "bodyPart": [
+      "全身"
+    ],
     "cue": "控制呼吸，動作保持連貫與穩定。",
     "coachNote": "站姿下蹲，雙手撐地把雙腳後踢到平板撐姿；可做一下伏地挺身，再把雙腳收回到下蹲並向上跳起。全程核心收緊、落地柔軟；避免腰椎過度下塌或甩手起跳。",
     "isBilateral": true
@@ -43,10 +64,19 @@
     "primaryCategory": "cardio",
     "defaultMode": "time",
     "defaultValue": 30,
-    "movementType": ["側移", "跳躍"],
-    "trainingGoal": ["協調性", "穩定度"],
+    "movementType": [
+      "側移",
+      "跳躍"
+    ],
+    "trainingGoal": [
+      "協調性",
+      "穩定度"
+    ],
     "equipment": "無",
-    "bodyPart": ["腿", "臀"],
+    "bodyPart": [
+      "腿",
+      "臀"
+    ],
     "cue": "轉移重心時保持平衡，著地輕柔穩定。",
     "coachNote": "單腳著地微蹲，向側邊跨跳換腳，後腳略點地維持平衡。上半身微向前、髖部帶動移動。著地時髖膝踝同方向吸震，避免膝蓋內夾與身體晃動過大。",
     "isBilateral": true
@@ -56,10 +86,19 @@
     "primaryCategory": "cardio",
     "defaultMode": "time",
     "defaultValue": 30,
-    "movementType": ["支撐", "交替"],
-    "trainingGoal": ["耐力", "穩定度"],
+    "movementType": [
+      "支撐",
+      "交替"
+    ],
+    "trainingGoal": [
+      "耐力",
+      "穩定度"
+    ],
     "equipment": "無",
-    "bodyPart": ["核心", "肩"],
+    "bodyPart": [
+      "核心",
+      "肩"
+    ],
     "cue": "保持核心穩定，讓膝蓋有控制地往前推進。",
     "coachNote": "平板撐姿，肩膀在手腕正上方。交替把膝蓋向胸口拉近再伸回。骨盆穩定不晃，頸部放鬆看地面；避免臀部上抬或塌腰造成腰緊繃。",
     "isBilateral": true
@@ -69,10 +108,18 @@
     "primaryCategory": "lower",
     "defaultMode": "time",
     "defaultValue": 20,
-    "movementType": ["深蹲", "跳躍"],
-    "trainingGoal": ["爆發力"],
+    "movementType": [
+      "深蹲",
+      "跳躍"
+    ],
+    "trainingGoal": [
+      "爆發力"
+    ],
     "equipment": "無",
-    "bodyPart": ["腿", "臀"],
+    "bodyPart": [
+      "腿",
+      "臀"
+    ],
     "cue": "落地時吸震，保持核心收緊與節奏。",
     "coachNote": "雙腳與肩同寬深蹲至大腿約平行地面後，快速向上跳起；落地回到深蹲連續進行。胸口打開、核心收緊；落地時腳跟也要觸地，避免膝蓋內扣。",
     "isBilateral": true
@@ -82,10 +129,18 @@
     "primaryCategory": "lower",
     "defaultMode": "time",
     "defaultValue": 30,
-    "movementType": ["弓箭步"],
-    "trainingGoal": ["穩定度", "協調性"],
+    "movementType": [
+      "弓箭步"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "協調性"
+    ],
     "equipment": "無",
-    "bodyPart": ["腿", "臀"],
+    "bodyPart": [
+      "腿",
+      "臀"
+    ],
     "cue": "下沉時軀幹保持直立，推回時腳跟發力。",
     "coachNote": "站姿向前跨步下沉成弓步，前後膝約 90°；推回站立後換腳。軀幹直立、核心收緊；注意前腳重心偏腳跟，避免前膝內夾與身體前傾。",
     "isBilateral": true
@@ -95,10 +150,18 @@
     "primaryCategory": "lower",
     "defaultMode": "time",
     "defaultValue": 30,
-    "movementType": ["踏步"],
-    "trainingGoal": ["穩定度", "耐力"],
+    "movementType": [
+      "踏步"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "耐力"
+    ],
     "equipment": "箱子或階梯",
-    "bodyPart": ["腿", "臀"],
+    "bodyPart": [
+      "腿",
+      "臀"
+    ],
     "cue": "踩穩台階，身體直上直下不晃動。",
     "coachNote": "面向台階，一腳踩穩後用髖伸把身體推上去，另一腳跟上；下來時先將同一腳退下。全掌踩穩、膝蓋對齊腳尖；避免用踝部硬拉或身體前傾。",
     "isBilateral": true
@@ -108,10 +171,18 @@
     "primaryCategory": "lower",
     "defaultMode": "time",
     "defaultValue": 30,
-    "movementType": ["深蹲"],
-    "trainingGoal": ["穩定度", "力量"],
+    "movementType": [
+      "深蹲"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "力量"
+    ],
     "equipment": "無",
-    "bodyPart": ["腿", "臀"],
+    "bodyPart": [
+      "腿",
+      "臀"
+    ],
     "cue": "坐向後下方，腳跟穩定、背部維持中立。",
     "coachNote": "雙腳與肩同寬，吸氣坐向後下方到可控深度，再吐氣站起。胸口打開、脊柱中立，膝蓋跟著腳尖方向外推；避免腳跟離地或腰背圓曲。",
     "isBilateral": true
@@ -121,10 +192,20 @@
     "primaryCategory": "upper",
     "defaultMode": "time",
     "defaultValue": 25,
-    "movementType": ["推", "支撐"],
-    "trainingGoal": ["耐力", "力量"],
+    "movementType": [
+      "推",
+      "支撐"
+    ],
+    "trainingGoal": [
+      "耐力",
+      "力量"
+    ],
     "equipment": "無",
-    "bodyPart": ["胸", "手臂", "肩"],
+    "bodyPart": [
+      "胸",
+      "手臂",
+      "肩"
+    ],
     "cue": "下放時穩定身體，推起時吐氣發力。",
     "coachNote": "平板撐姿，手略寬於肩。身體成一直線向下至胸接近地面，再推回。核心繃緊避免塌腰，手肘約 45° 外展；做不動可改膝蓋著地或抬高手。",
     "isBilateral": true
@@ -134,10 +215,18 @@
     "primaryCategory": "upper",
     "defaultMode": "time",
     "defaultValue": 30,
-    "movementType": ["支撐", "交替"],
-    "trainingGoal": ["穩定度"],
+    "movementType": [
+      "支撐",
+      "交替"
+    ],
+    "trainingGoal": [
+      "穩定度"
+    ],
     "equipment": "無",
-    "bodyPart": ["肩", "核心"],
+    "bodyPart": [
+      "肩",
+      "核心"
+    ],
     "cue": "抬手時保持骨盆穩定，呼吸平順。",
     "coachNote": "高平板撐姿，交替抬手輕點對側肩膀。雙腳可稍寬以穩定骨盆。保持身體成一直線、盡量不左右晃動；避免臀部上抬或塌腰。",
     "isBilateral": true
@@ -147,10 +236,17 @@
     "primaryCategory": "upper",
     "defaultMode": "time",
     "defaultValue": 25,
-    "movementType": ["推"],
-    "trainingGoal": ["力量"],
+    "movementType": [
+      "推"
+    ],
+    "trainingGoal": [
+      "力量"
+    ],
     "equipment": "椅子",
-    "bodyPart": ["手臂", "肩"],
+    "bodyPart": [
+      "手臂",
+      "肩"
+    ],
     "cue": "下放時手肘靠近身體，保持肩膀放鬆。",
     "coachNote": "雙手扶在椅邊肩寬，身體在椅前方。彎曲手肘下放至上臂約平行地面，再推回伸直。肩膀下沉不聳肩，手肘朝後走；避免身體過度前移造成肩夾擠。",
     "isBilateral": true
@@ -160,10 +256,17 @@
     "primaryCategory": "core",
     "defaultMode": "time",
     "defaultValue": 30,
-    "movementType": ["支撐"],
-    "trainingGoal": ["穩定度"],
+    "movementType": [
+      "支撐"
+    ],
+    "trainingGoal": [
+      "穩定度"
+    ],
     "equipment": "墊子",
-    "bodyPart": ["核心", "肩"],
+    "bodyPart": [
+      "核心",
+      "肩"
+    ],
     "cue": "收緊腹部與臀部，保持身體成一直線。",
     "coachNote": "前臂或高平板皆可，肩膀在手肘/手腕正上方。全程收腹夾臀維持中立位，呼吸平穩。若腰緊可改膝蓋著地；避免頭抬過高或含胸塌腰。",
     "isBilateral": true
@@ -173,10 +276,18 @@
     "primaryCategory": "core",
     "defaultMode": "time",
     "defaultValue": 30,
-    "movementType": ["旋轉"],
-    "trainingGoal": ["協調性", "穩定度"],
+    "movementType": [
+      "旋轉"
+    ],
+    "trainingGoal": [
+      "協調性",
+      "穩定度"
+    ],
     "equipment": "無",
-    "bodyPart": ["核心", "腹"],
+    "bodyPart": [
+      "核心",
+      "腹"
+    ],
     "cue": "穩定軀幹，讓旋轉由核心帶動。",
     "coachNote": "坐姿屈膝，軀幹微後傾保持背部延展，雙手在胸前。左右轉動上半身並讓視線跟著移動。動作由肋骨帶動而非甩手，腹部持續收緊避免含胸圓背。",
     "isBilateral": true
@@ -186,10 +297,19 @@
     "primaryCategory": "full",
     "defaultMode": "time",
     "defaultValue": 25,
-    "movementType": ["髖伸", "擺動"],
-    "trainingGoal": ["爆發力"],
+    "movementType": [
+      "髖伸",
+      "擺動"
+    ],
+    "trainingGoal": [
+      "爆發力"
+    ],
     "equipment": "壺鈴",
-    "bodyPart": ["全身", "臀", "背"],
+    "bodyPart": [
+      "全身",
+      "臀",
+      "背"
+    ],
     "cue": "讓髖部主導擺動，保持肩膀放鬆。",
     "coachNote": "壺鈴在兩腿間，髖關節折疊把壺鈴往後帶，再以髖伸爆發把壺鈴擺到胸口高度。手臂只做連結、肩膀放鬆；保持背部平直與核心張力，避免靠腰背硬拉。",
     "isBilateral": true
@@ -199,10 +319,18 @@
     "primaryCategory": "core",
     "defaultMode": "time",
     "defaultValue": 30,
-    "movementType": ["屈曲"],
-    "trainingGoal": ["穩定度", "耐力"],
+    "movementType": [
+      "屈曲"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "耐力"
+    ],
     "equipment": "墊子",
-    "bodyPart": ["核心", "腹"],
+    "bodyPart": [
+      "核心",
+      "腹"
+    ],
     "cue": "下背部貼地，膝蓋往胸口收，控制下放。",
     "coachNote": "仰臥，雙手放身體兩側或扶髖。屈膝並以腹部力量把骨盆微微後傾、膝蓋朝胸口靠近，再緩慢放回。過程保持頸部放鬆與下背貼地，避免用擺腿或衝力。",
     "isBilateral": true
@@ -212,10 +340,19 @@
     "primaryCategory": "lower",
     "defaultMode": "time",
     "defaultValue": 20,
-    "movementType": ["弓箭步", "跳躍"],
-    "trainingGoal": ["爆發力", "協調性"],
+    "movementType": [
+      "弓箭步",
+      "跳躍"
+    ],
+    "trainingGoal": [
+      "爆發力",
+      "協調性"
+    ],
     "equipment": "無",
-    "bodyPart": ["腿", "臀"],
+    "bodyPart": [
+      "腿",
+      "臀"
+    ],
     "cue": "交換落地時膝蓋對齊腳尖，重心穩定。",
     "coachNote": "從弓步姿勢向上跳起，於空中交換前後腳，落地回到相反弓步。保持軀幹直立、核心收緊，著地吸震並控制幅度；若失衡可改低衝擊的快步交換。",
     "isBilateral": true
@@ -225,10 +362,20 @@
     "primaryCategory": "lower",
     "defaultMode": "time",
     "defaultValue": 30,
-    "movementType": ["深蹲", "踢"],
-    "trainingGoal": ["穩定度", "協調性"],
+    "movementType": [
+      "深蹲",
+      "踢"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "協調性"
+    ],
     "equipment": "無",
-    "bodyPart": ["腿", "臀", "核心"],
+    "bodyPart": [
+      "腿",
+      "臀",
+      "核心"
+    ],
     "cue": "站起時抬腿前踢，軀幹保持穩定不後仰。",
     "coachNote": "完成一次深蹲後站起，單腳向前做控制性的前踢，左右交替。全程胸口打開、核心收緊；踢腿高度以能穩定控制為主，避免耍腿或身體後傾。",
     "isBilateral": true
@@ -238,10 +385,21 @@
     "primaryCategory": "full",
     "defaultMode": "time",
     "defaultValue": 30,
-    "movementType": ["深蹲", "上舉"],
-    "trainingGoal": ["活動度", "耐力"],
+    "movementType": [
+      "深蹲",
+      "上舉"
+    ],
+    "trainingGoal": [
+      "活動度",
+      "耐力"
+    ],
     "equipment": "無",
-    "bodyPart": ["腿", "臀", "肩", "核心"],
+    "bodyPart": [
+      "腿",
+      "臀",
+      "肩",
+      "核心"
+    ],
     "cue": "下蹲時手往前平衡，站起時手臂上舉延展。",
     "coachNote": "雙腳與肩同寬下蹲，站起同時雙手上舉向上延伸（可想像要觸碰天花板）。保持腳跟著地與脊柱中立，動作平順不急。",
     "isBilateral": true
@@ -251,10 +409,20 @@
     "primaryCategory": "core",
     "defaultMode": "time",
     "defaultValue": 30,
-    "movementType": ["支撐", "跳躍"],
-    "trainingGoal": ["穩定度", "心肺"],
+    "movementType": [
+      "支撐",
+      "跳躍"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "心肺"
+    ],
     "equipment": "墊子",
-    "bodyPart": ["核心", "肩", "腿"],
+    "bodyPart": [
+      "核心",
+      "肩",
+      "腿"
+    ],
     "cue": "核心收緊，雙腳穩定開合跳，軀幹保持不晃動。",
     "coachNote": "採高平板撐姿勢，肩膀在手腕正上方。保持身體成一直線，雙腳同步向外跳開、再併回。核心與臀部持續收緊以避免骨盆上下晃動。",
     "isBilateral": true
@@ -264,10 +432,18 @@
     "primaryCategory": "cardio",
     "defaultMode": "time",
     "defaultValue": 40,
-    "movementType": ["跳躍"],
-    "trainingGoal": ["心肺", "協調性"],
+    "movementType": [
+      "跳躍"
+    ],
+    "trainingGoal": [
+      "心肺",
+      "協調性"
+    ],
     "equipment": "無",
-    "bodyPart": ["腿", "核心"],
+    "bodyPart": [
+      "腿",
+      "核心"
+    ],
     "cue": "保持直立姿勢，腳跟主動往臀部方向抬起。",
     "coachNote": "原地跑動姿勢，核心收緊，腳跟交替踢向臀部。手臂自然擺動協調節奏。",
     "isBilateral": true
@@ -277,10 +453,19 @@
     "primaryCategory": "cardio",
     "defaultMode": "time",
     "defaultValue": 40,
-    "movementType": ["側移"],
-    "trainingGoal": ["敏捷性", "穩定度"],
+    "movementType": [
+      "側移"
+    ],
+    "trainingGoal": [
+      "敏捷性",
+      "穩定度"
+    ],
     "equipment": "無",
-    "bodyPart": ["腿", "臀", "核心"],
+    "bodyPart": [
+      "腿",
+      "臀",
+      "核心"
+    ],
     "cue": "保持低重心，小步快速滑動。",
     "coachNote": "膝蓋微彎、髖部後收，快速往左右移動，保持胸口打開、腳步輕快。",
     "isBilateral": true
@@ -290,10 +475,20 @@
     "primaryCategory": "core",
     "defaultMode": "time",
     "defaultValue": 40,
-    "movementType": ["支撐", "爬行"],
-    "trainingGoal": ["穩定度", "協調性"],
+    "movementType": [
+      "支撐",
+      "爬行"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "協調性"
+    ],
     "equipment": "無",
-    "bodyPart": ["核心", "肩", "腿"],
+    "bodyPart": [
+      "核心",
+      "肩",
+      "腿"
+    ],
     "cue": "保持膝蓋離地、動作流暢穩定。",
     "coachNote": "手在肩下、膝離地一拳高，對角手腳交替前進，核心保持穩定。",
     "isBilateral": true
@@ -303,10 +498,19 @@
     "primaryCategory": "core",
     "defaultMode": "time",
     "defaultValue": 40,
-    "movementType": ["屈曲", "旋轉"],
-    "trainingGoal": ["協調性", "耐力"],
+    "movementType": [
+      "屈曲",
+      "旋轉"
+    ],
+    "trainingGoal": [
+      "協調性",
+      "耐力"
+    ],
     "equipment": "墊子",
-    "bodyPart": ["核心", "腹"],
+    "bodyPart": [
+      "核心",
+      "腹"
+    ],
     "cue": "上身穩定旋轉，膝蓋控制收放。",
     "coachNote": "仰臥、雙手放頭後，交替讓對側肘碰膝，避免扭頸與甩腿。",
     "isBilateral": true
@@ -316,12 +520,637 @@
     "primaryCategory": "core",
     "defaultMode": "time",
     "defaultValue": 40,
-    "movementType": ["支撐", "交替"],
-    "trainingGoal": ["穩定度", "控制力"],
+    "movementType": [
+      "支撐",
+      "交替"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "控制力"
+    ],
     "equipment": "墊子",
-    "bodyPart": ["核心", "腹", "背"],
+    "bodyPart": [
+      "核心",
+      "腹",
+      "背"
+    ],
     "cue": "下背貼地，對角手腳穩定交替伸展。",
     "coachNote": "仰臥雙手上舉、膝蓋90度，對側手腳緩慢伸直再拉回，下背維持貼地。",
+    "isBilateral": true
+  },
+  {
+    "name": "Brace Marches\n核心撐穩踏步",
+    "primaryCategory": "core",
+    "defaultMode": "time",
+    "defaultValue": 30,
+    "movementType": [
+      "支撐",
+      "交替"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "控制力"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "核心",
+      "腹",
+      "髖屈肌"
+    ],
+    "cue": "骨盆穩定，單腳抬起時身體不晃。",
+    "coachNote": "仰臥屈膝踩地，核心先收緊固定骨盆，再交替抬起單腳。動作慢且可控，避免腰部拱起或骨盆左右晃動。",
+    "isBilateral": true
+  },
+  {
+    "name": "Heel Touch\n仰臥側碰腳踝",
+    "primaryCategory": "core",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "屈曲",
+      "側移"
+    ],
+    "trainingGoal": [
+      "耐力",
+      "協調性"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "核心",
+      "腹"
+    ],
+    "cue": "肩膀微離地，左右穩定觸腳踝。",
+    "coachNote": "仰臥屈膝，核心收緊讓上身微抬，左右側彎觸碰腳踝。動作由肋骨帶動，避免用手硬甩。",
+    "isBilateral": true
+  },
+  {
+    "name": "Bear Hold\n熊式撐地",
+    "primaryCategory": "core",
+    "defaultMode": "time",
+    "defaultValue": 30,
+    "movementType": [
+      "支撐"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "控制力"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "核心",
+      "肩",
+      "腿"
+    ],
+    "cue": "膝蓋離地、背部中立，穩定呼吸。",
+    "coachNote": "四足跪姿，膝蓋離地約一拳高度，核心收緊、背部平直。避免塌腰或聳肩，呼吸保持順暢。",
+    "isBilateral": true
+  },
+  {
+    "name": "Swimmer\n超人游泳式",
+    "primaryCategory": "core",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "交替",
+      "伸展"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "控制力"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "背",
+      "臀",
+      "核心"
+    ],
+    "cue": "對側手腳交替抬起，軀幹穩定。",
+    "coachNote": "俯臥，對側手腳交替抬起，幅度小但穩定。頸部延伸看地面，避免抬頭過高造成腰椎壓力。",
+    "isBilateral": true
+  },
+  {
+    "name": "Bird Dog\n對角伸展",
+    "primaryCategory": "core",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "支撐",
+      "交替"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "控制力"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "核心",
+      "背",
+      "臀"
+    ],
+    "cue": "骨盆穩定，對角手腳延伸。",
+    "coachNote": "四足跪姿，對側手腳慢慢伸直再收回，下背維持中立位，避免骨盆歪斜或身體左右晃動。",
+    "isBilateral": true
+  },
+  {
+    "name": "Single Leg Bridges\n單腳橋式",
+    "primaryCategory": "lower",
+    "defaultMode": "time",
+    "defaultValue": 30,
+    "movementType": [
+      "髖伸",
+      "支撐"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "力量"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "臀",
+      "腿",
+      "核心"
+    ],
+    "cue": "抬臀時骨盆不歪斜。",
+    "coachNote": "仰臥單腳踩地抬臀，髖部向上延伸。避免骨盆旋轉或塌腰，發力來自臀部而非下背。",
+    "isBilateral": true
+  },
+  {
+    "name": "Hamstring Stretch\n腿後側伸展",
+    "primaryCategory": "lower",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "伸展"
+    ],
+    "trainingGoal": [
+      "活動度",
+      "放鬆"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "腿後側",
+      "臀"
+    ],
+    "cue": "背部打直，感覺大腿後側被拉開。",
+    "coachNote": "前屈或抬腿伸展皆可，保持脊椎延展，避免駝背硬拉。",
+    "isBilateral": true
+  },
+  {
+    "name": "Lumbar Rotation Stretch\n下背旋轉伸展",
+    "primaryCategory": "core",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "旋轉"
+    ],
+    "trainingGoal": [
+      "活動度",
+      "放鬆"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "下背",
+      "核心"
+    ],
+    "cue": "骨盆放鬆，讓下背自然旋轉。",
+    "coachNote": "仰臥屈膝，雙膝倒向側邊，肩膀盡量貼地。過程不強拉，以舒服範圍為主。",
+    "isBilateral": true
+  },
+  {
+    "name": "Piriformis Stretch\n梨狀肌伸展",
+    "primaryCategory": "lower",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "伸展"
+    ],
+    "trainingGoal": [
+      "活動度",
+      "放鬆"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "臀",
+      "髖"
+    ],
+    "cue": "感覺臀部深層被拉開即可。",
+    "coachNote": "仰臥或坐姿把腳踝跨在對側膝上，輕輕拉近身體，避免膝蓋被硬壓。",
+    "isBilateral": true
+  },
+  {
+    "name": "Tall Knee Hip Flexor Stretch\n跪姿髖屈肌伸展",
+    "primaryCategory": "lower",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "伸展"
+    ],
+    "trainingGoal": [
+      "活動度"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "髖屈肌",
+      "腿"
+    ],
+    "cue": "骨盆微後收，感覺前側大腿被拉開。",
+    "coachNote": "單膝跪地，身體微向前，保持軀幹直立，避免拱腰代償。",
+    "isBilateral": true
+  },
+  {
+    "name": "Child Pose Stretch\n嬰兒式伸展",
+    "primaryCategory": "core",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "伸展"
+    ],
+    "trainingGoal": [
+      "放鬆",
+      "活動度"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "背",
+      "核心",
+      "肩"
+    ],
+    "cue": "背部放鬆延展，呼吸放慢。",
+    "coachNote": "跪姿坐回腳跟，雙手向前延伸，讓背部自然放鬆，配合深呼吸。",
+    "isBilateral": true
+  },
+  {
+    "name": "Upper Back Extension\n上背伸展",
+    "primaryCategory": "upper",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "伸展"
+    ],
+    "trainingGoal": [
+      "活動度"
+    ],
+    "equipment": "無",
+    "bodyPart": [
+      "上背",
+      "肩"
+    ],
+    "cue": "延展胸椎，不要拱腰代償。",
+    "coachNote": "可坐姿或跪姿，雙手向前推延展上背，重點在胸椎打開而非下背代償。",
+    "isBilateral": true
+  },
+  {
+    "name": "Seated Spine Rotation Stretch\n坐姿脊椎旋轉伸展",
+    "primaryCategory": "core",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "旋轉"
+    ],
+    "trainingGoal": [
+      "活動度"
+    ],
+    "equipment": "無",
+    "bodyPart": [
+      "核心",
+      "背"
+    ],
+    "cue": "旋轉來自肋骨，不是甩手。",
+    "coachNote": "坐姿轉動軀幹，保持脊椎延展，避免聳肩或塌腰。",
+    "isBilateral": true
+  },
+  {
+    "name": "Upper Trap Stretch\n上斜方肌伸展",
+    "primaryCategory": "upper",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "伸展"
+    ],
+    "trainingGoal": [
+      "放鬆",
+      "活動度"
+    ],
+    "equipment": "無",
+    "bodyPart": [
+      "頸部",
+      "肩"
+    ],
+    "cue": "輕柔拉伸，不要壓頭。",
+    "coachNote": "頭側彎搭配肩膀下沉，拉伸到頸肩側邊即可，避免用力壓頭造成不適。",
+    "isBilateral": true
+  },
+  {
+    "name": "Glute Bridges\n臀橋",
+    "primaryCategory": "lower",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "髖伸",
+      "支撐"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "力量"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "臀",
+      "腿",
+      "核心"
+    ],
+    "cue": "抬臀時夾臀，骨盆維持穩定。",
+    "coachNote": "仰臥屈膝踩地，吐氣抬臀到肩－髖－膝成一直線。避免用下背代償或骨盆歪斜，頂峰短暫夾臀。",
+    "isBilateral": true
+  },
+  {
+    "name": "Serratus Pushes\n前鋸肌推",
+    "primaryCategory": "upper",
+    "defaultMode": "time",
+    "defaultValue": 30,
+    "movementType": [
+      "推",
+      "支撐"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "控制力"
+    ],
+    "equipment": "無",
+    "bodyPart": [
+      "肩",
+      "前鋸肌",
+      "核心"
+    ],
+    "cue": "手肘不彎，肩胛前推後收。",
+    "coachNote": "高平板或牆面撐姿，手肘打直，僅做肩胛前推與回收，避免塌腰或聳肩。",
+    "isBilateral": true
+  },
+  {
+    "name": "Push Up Plus Progression\n伏地挺身加強版",
+    "primaryCategory": "upper",
+    "defaultMode": "time",
+    "defaultValue": 25,
+    "movementType": [
+      "推",
+      "支撐"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "力量"
+    ],
+    "equipment": "無",
+    "bodyPart": [
+      "胸",
+      "肩",
+      "前鋸肌",
+      "核心"
+    ],
+    "cue": "推到最上方再多推一下肩胛。",
+    "coachNote": "伏地挺身推到頂端後，再做一次肩胛前推。全程核心收緊，避免塌腰或鎖死肩膀。",
+    "isBilateral": true
+  },
+  {
+    "name": "Serratus Punches\n前鋸肌出拳",
+    "primaryCategory": "upper",
+    "defaultMode": "time",
+    "defaultValue": 30,
+    "movementType": [
+      "推"
+    ],
+    "trainingGoal": [
+      "控制力",
+      "穩定度"
+    ],
+    "equipment": "無",
+    "bodyPart": [
+      "前鋸肌",
+      "肩"
+    ],
+    "cue": "出拳時感覺肩胛向前滑動。",
+    "coachNote": "仰臥或站姿，手臂向上出拳，讓肩胛骨前移再回收，避免聳肩代償。",
+    "isBilateral": true
+  },
+  {
+    "name": "Band Pull Apart\n彈力帶外拉",
+    "primaryCategory": "upper",
+    "defaultMode": "time",
+    "defaultValue": 30,
+    "movementType": [
+      "拉",
+      "外展"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "力量"
+    ],
+    "equipment": "彈力帶",
+    "bodyPart": [
+      "上背",
+      "肩"
+    ],
+    "cue": "手臂伸直，肩胛向後下夾。",
+    "coachNote": "雙手拉開彈力帶，控制回程，避免聳肩或用手腕代償。",
+    "isBilateral": true
+  },
+  {
+    "name": "Band Y Raise\n彈力帶 Y 字上舉",
+    "primaryCategory": "upper",
+    "defaultMode": "time",
+    "defaultValue": 30,
+    "movementType": [
+      "上舉",
+      "拉"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "控制力"
+    ],
+    "equipment": "彈力帶",
+    "bodyPart": [
+      "肩",
+      "上背"
+    ],
+    "cue": "手臂呈 Y 字，肩膀放鬆不上聳。",
+    "coachNote": "斜向上舉至 Y 字角度，專注肩胛上旋控制，避免下背代償或聳肩。",
+    "isBilateral": true
+  },
+  {
+    "name": "Serratus Wall Slides\n靠牆前鋸肌滑牆",
+    "primaryCategory": "upper",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "上舉",
+      "支撐"
+    ],
+    "trainingGoal": [
+      "穩定度",
+      "活動度"
+    ],
+    "equipment": "牆面",
+    "bodyPart": [
+      "肩",
+      "前鋸肌",
+      "上背"
+    ],
+    "cue": "貼牆滑動，肩胛穩定上旋。",
+    "coachNote": "手肘靠牆向上滑，維持肋骨下收與核心穩定，避免腰椎拱起代償。",
+    "isBilateral": true
+  },
+  {
+    "name": "Cat Cow\n貓牛式",
+    "primaryCategory": "core",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "屈曲",
+      "伸展"
+    ],
+    "trainingGoal": [
+      "活動度",
+      "放鬆"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "脊椎",
+      "背",
+      "核心"
+    ],
+    "cue": "配合呼吸，脊椎一節一節活動。",
+    "coachNote": "四足跪姿吸氣拱背、吐氣圓背，動作流暢，避免憋氣或過度擠壓頸椎。",
+    "isBilateral": true
+  },
+  {
+    "name": "90-90 Hip Switches\n90/90 髖部轉換",
+    "primaryCategory": "lower",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "旋轉",
+      "控制"
+    ],
+    "trainingGoal": [
+      "活動度",
+      "控制力"
+    ],
+    "equipment": "無",
+    "bodyPart": [
+      "髖",
+      "臀",
+      "核心"
+    ],
+    "cue": "上半身穩定，髖部主導轉換。",
+    "coachNote": "坐姿雙膝 90/90，雙腳不離地進行左右轉換。保持軀幹直立，避免用手大力撐地借力。",
+    "isBilateral": true
+  },
+  {
+    "name": "Hamstring Reach\n腿後側前伸",
+    "primaryCategory": "lower",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "伸展",
+      "前屈"
+    ],
+    "trainingGoal": [
+      "活動度"
+    ],
+    "equipment": "無",
+    "bodyPart": [
+      "腿後側",
+      "臀"
+    ],
+    "cue": "背部延展，手向前延伸不駝背。",
+    "coachNote": "坐姿或站姿前伸，感覺大腿後側被拉長即可，避免圓背硬拉。",
+    "isBilateral": true
+  },
+  {
+    "name": "Thread the Needle\n穿針式旋轉",
+    "primaryCategory": "core",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "旋轉",
+      "伸展"
+    ],
+    "trainingGoal": [
+      "活動度"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "上背",
+      "肩",
+      "核心"
+    ],
+    "cue": "旋轉來自胸椎，骨盆穩定。",
+    "coachNote": "四足跪姿單手穿過身體旋轉上背，骨盆維持穩定，避免塌腰或聳肩。",
+    "isBilateral": true
+  },
+  {
+    "name": "Rocking Hip Flexor\n前後擺動髖屈肌",
+    "primaryCategory": "lower",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "伸展",
+      "擺動"
+    ],
+    "trainingGoal": [
+      "活動度",
+      "放鬆"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "髖屈肌",
+      "腿"
+    ],
+    "cue": "骨盆微後收，前後擺動不卡腰。",
+    "coachNote": "半跪姿前後輕微擺動，維持軀幹直立與核心收緊，避免拱腰代償。",
+    "isBilateral": true
+  },
+  {
+    "name": "Glute Figure-4\n躺姿 4 字臀部伸展",
+    "primaryCategory": "lower",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "伸展"
+    ],
+    "trainingGoal": [
+      "活動度",
+      "放鬆"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "臀",
+      "髖"
+    ],
+    "cue": "感覺臀部深層被拉開即可。",
+    "coachNote": "仰臥將腳踝跨在對側膝上，雙手抱住大腿拉近。過程不壓膝蓋，以舒適為主。",
+    "isBilateral": true
+  },
+  {
+    "name": "Knees to Chest\n抱膝",
+    "primaryCategory": "core",
+    "defaultMode": "time",
+    "defaultValue": 40,
+    "movementType": [
+      "屈曲",
+      "放鬆"
+    ],
+    "trainingGoal": [
+      "放鬆",
+      "活動度"
+    ],
+    "equipment": "墊子",
+    "bodyPart": [
+      "下背",
+      "臀",
+      "核心"
+    ],
+    "cue": "輕輕抱膝，讓下背放鬆貼地。",
+    "coachNote": "仰臥抱雙膝靠近胸口，配合呼吸放鬆下背，不要用力拉扯。",
     "isBilateral": true
   }
 ]
