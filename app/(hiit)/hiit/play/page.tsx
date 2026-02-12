@@ -392,6 +392,11 @@ function PlayInner() {
   const slug = getSlugFromLabel(cur.label);
   const base = cur.kind === 'work' && slug ? `/hiit/media/${slug}` : '';
 
+  // 找下一個需要顯示影片的動作 (預載用)
+  const nextWorkItem = timeline.slice(idx + 1).find((it) => it.kind === 'work');
+  const nextSlug = nextWorkItem ? getSlugFromLabel(nextWorkItem.label) : '';
+  const nextBase = nextSlug ? `/hiit/media/${nextSlug}` : '';
+
   // ── UI helper：開始訓練 ─────────────────────────────────────────────────────
   const handleStartClick = () => {
     if (!started) {
@@ -415,6 +420,23 @@ function PlayInner() {
   // ── UI ─────────────────────────────────────────────────────────────────────
   return (
     <div className="p-6 flex flex-col items-center text-white relative">
+      {/* 隱藏的預載區域：在背景加載下一個動作的影片以避免延遲 */}
+      <div style={{ width: 0, height: 0, overflow: 'hidden', position: 'absolute', opacity: 0, pointerEvents: 'none' }}>
+        {nextBase && (
+          <video key={`preload-${nextBase}`} preload="auto" muted playsInline>
+            <source src={`${nextBase}.mp4`} type="video/mp4" />
+            <source src={`${nextBase}.webm`} type="video/webm" />
+          </video>
+        )}
+        {/* 如果還沒開始，預載第一個動作 */}
+        {!started && base && (
+          <video key={`preload-${base}`} preload="auto" muted playsInline>
+            <source src={`${base}.mp4`} type="video/mp4" />
+            <source src={`${base}.webm`} type="video/webm" />
+          </video>
+        )}
+      </div>
+
       <div className="self-start mb-2 flex items-center gap-2 w-full">
         <BackButton />
         <div className="ml-auto flex items-center gap-2">
@@ -496,7 +518,7 @@ function PlayInner() {
                 loop
                 muted
                 playsInline
-                preload="metadata"
+                preload="auto"
                 onCanPlay={() => setVideoOk(true)}
                 onLoadedData={() => setVideoOk(true)}
                 onError={() => setVideoOk(false)}
