@@ -177,11 +177,11 @@ function PlayInner() {
       const slug = getSlugFromLabel(cur.label);
       playWorkStart(slug);
     } else if (cur.kind === 'rest' || cur.kind === 'interset') {
-      playVoice('rest_normal');
+      playVoice('rest-normal');
     } else if (cur.kind === 'warmup') {
-      playVoice('warmup_start');
+      playVoice('warmup-start');
     } else if (cur.kind === 'cooldown') {
-      playVoice('cooldown_start');
+      playVoice('cooldown-start');
     }
   }, [idx, timeline, started, ttsOn]);
 
@@ -265,16 +265,16 @@ function PlayInner() {
     lastCountdownSpokenRef.current = secLeft;
 
     if (secLeft === 10) {
-      playVoice('countdown_10');
+      playVoice('countdown-10');
     } else if (secLeft === 3) {
-      playVoice('countdown_3');
+      playVoice('countdown-3');
     } else if (secLeft === 2) {
-      playVoice('countdown_2');
+      playVoice('countdown-2');
     } else if (secLeft === 1) {
       if (next && next.kind === 'work') {
-        playVoice('countdown_1_work');
+        playVoice('countdown-1-work');
       } else {
-        playVoice('countdown_1_rest');
+        playVoice('countdown-1-rest');
       }
     }
   }, [msLeft, paused, ttsOn, timeline, idx, started]);

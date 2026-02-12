@@ -30,7 +30,7 @@ export function primeVoices() {
   if (!audio) return;
 
   try {
-    const src = audioPath('rest_normal'); // 用一個一定存在的短檔
+    const src = audioPath('rest-normal'); // 用一個一定存在的短檔
     audio.src = src;
     audio.volume = 0; // 🔇 靜音解鎖
     voicesPrimed = true;
@@ -76,7 +76,7 @@ export function playVoice(name: string) {
   }
 }
 
-// ---- 變體快取：workout_start_ / finish_ / work_start_<slug>_A/B/... ----
+// ---- 變體快取：workout-start- / finish- / work-start-<slug>-A/B/... ----
 
 // 目前你有 workout_start_A/B/C & finish_A/B/C
 // 保留到 F，未來要加 D/E/F 直接丟檔案即可
@@ -85,7 +85,7 @@ const variantCache: Record<string, string[]> = {};
 
 /**
  * 以 prefix + A~F 掃描實際存在的檔案，結果快取起來。
- * 例如 prefix = "workout_start_" → workout_start_A/B/C...
+ * 例如 prefix = "workout-start-" → workout-start-A/B/C...
  */
 async function discoverVariants(prefix: string): Promise<string[]> {
   if (variantCache[prefix]) return variantCache[prefix];
@@ -128,22 +128,22 @@ export async function playRandomVariant(prefix: string, fallbackName?: string) {
 
 // ---- 專用語音封裝：給 play/page.tsx 呼叫 ----
 
-/** 開始訓練：workout_start_A/B/C...（未來加 D/E/F 會自動吃到） */
+/** 開始訓練：workout-start-A/B/C...（未來加 D/E/F 會自動吃到） */
 export function playWorkoutStart() {
-  void playRandomVariant('workout_start_');
+  void playRandomVariant('workout-start-');
 }
 
-/** 結束訓練：finish_A/B/C...（未來加 D/E/F 會自動吃到） */
+/** 結束訓練：finish-A/B/C...（未來加 D/E/F 會自動吃到） */
 export function playFinishRandom() {
-  void playRandomVariant('finish_');
+  void playRandomVariant('finish-');
 }
 
-/** 某個動作開始：work_start_<slug> 或 work_start_<slug>_A/B/... */
+/** 某個動作開始：work-start-<slug> 或 work-start-<slug>-A/B/... */
 export function playWorkStart(slug: string) {
   if (!slug) return;
 
-  const variantPrefix = `work_start_${slug}_`;   // 預留未來 A/B/C... 用
-  const singleName = `work_start_${slug}`;       // 目前實際存在的檔名
+  const variantPrefix = `work-start-${slug}-`;   // 預留未來 A/B/C... 用
+  const singleName = `work-start-${slug}`;       // 目前實際存在的檔名
 
   void playRandomVariant(variantPrefix, singleName);
 }
